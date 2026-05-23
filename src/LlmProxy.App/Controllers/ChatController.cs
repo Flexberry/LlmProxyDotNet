@@ -1,17 +1,17 @@
+// src/LlmProxy.App/Controllers/ChatController.cs
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LlmProxy.Core.Entities;
+using LlmProxy.Core.Logging;
 using LlmProxy.Core.Models.Dto;
 using LlmProxy.Core.Providers;
 using LlmProxy.Core.Router;
 using LlmProxy.Infrastructure.Providers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-
-
 
 namespace LlmProxy.App.Controllers;
 
@@ -22,17 +22,19 @@ public class ChatController : ControllerBase
     private readonly ILogger<ChatController> _logger;
     private readonly ILlmRouter _router;
     private readonly ProviderFactory _providerFactory;
+    private readonly ILoggingService _loggingService;  // <-- ДОБАВЛЕНО
     private readonly JsonSerializerOptions _jsonOptions;
 
-    // Конструктор с зависимостями
     public ChatController(
         ILogger<ChatController> logger,
         ILlmRouter router,
-        ProviderFactory providerFactory)
+        ProviderFactory providerFactory,
+        ILoggingService loggingService)  // <-- ДОБАВЛЕНО В КОНСТРУКТОР
     {
         _logger = logger;
         _router = router;
         _providerFactory = providerFactory;
+        _loggingService = loggingService;  // <-- ДОБАВЛЕНО
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -43,15 +45,16 @@ public class ChatController : ControllerBase
     [HttpPost("completions")]
     public async Task<IActionResult> CreateChatCompletion([FromBody] ChatCompletionRequest request)
     {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        
         if (string.IsNullOrWhiteSpace(request.Model))
             return BadRequest(new { error = "Missing required field: model" });
         
         if (request.Messages == null || !request.Messages.Any())
             return BadRequest(new { error = "Missing required field: messages" });
 
-        var apiKey = HttpContext.Items["ApiKey"] as ApiKey;
-        var apiKeyHash = HttpContext.Items["ApiKeyHash"] as string;
-
+        var apiKeyHash = HttpContext.Items["ApiKeyHash"] as string ?? "unknown";
+        
         try
         {
             var provider = await _router.SelectProviderAsync(
@@ -59,7 +62,7 @@ public class ChatController : ControllerBase
 
             if (request.Stream == true)
             {
-                return await StreamWithProvider(request, provider, apiKeyHash);
+                return await StreamWithProvider(request, provider, apiKeyHash, stopwatch);
             }
             else
             {
@@ -70,63 +73,88 @@ public class ChatController : ControllerBase
                     maxRetries: 2,
                     ct: HttpContext.RequestAborted);
                 
-                _ = LogRequestAsync(apiKeyHash, request.Model, provider.ProviderName, response, null);
+                stopwatch.Stop();
+                
+                _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+                    apiKeyHash,
+                    provider.ProviderName,
+                    request.Model,
+                    response.Model,
+                    (int)stopwatch.ElapsedMilliseconds,
+                    "success",
+                    response,
+                    isStreaming: false);
                 
                 return Ok(response);
             }
         }
-        catch (AggregateException ex) when (ex.InnerException is HttpRequestException)
-        {
-            _logger.LogError(ex, "All providers failed for model {Model}", request.Model);
-            return StatusCode(502, new { error = "All LLM providers are currently unavailable" });
-        }
-        // ИСПРАВЛЕНО: сравнение с enum HttpStatusCode, а не int
-        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            return StatusCode(401, new { error = "Invalid provider API key" });
-        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error processing chat completion");
-            return StatusCode(500, new { error = "Internal server error" });
+            stopwatch.Stop();
+            
+            _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+                apiKeyHash,
+                "unknown",
+                request.Model,
+                request.Model,
+                (int)stopwatch.ElapsedMilliseconds,
+                "error",
+                error: ex);
+            
+            throw;
         }
     }
 
     private async Task<IActionResult> StreamWithProvider(
         ChatCompletionRequest request, 
         ILlmProvider provider, 
-        string? apiKeyHash)
+        string apiKeyHash,
+        System.Diagnostics.Stopwatch stopwatch)
     {
         Response.Headers.ContentType = "text/event-stream";
         Response.Headers.CacheControl = "no-cache";
 
-        await foreach (var chunk in provider.CreateChatCompletionStreamAsync(request, HttpContext.RequestAborted))
+        try
         {
-            var json = JsonSerializer.Serialize(chunk, _jsonOptions);
-            var data = $"data: {json}\n\n";
-            var bytes = Encoding.UTF8.GetBytes(data);
-            
-            await Response.Body.WriteAsync(bytes, HttpContext.RequestAborted);
-            await Response.Body.FlushAsync(HttpContext.RequestAborted);
+            await foreach (var chunk in provider.CreateChatCompletionStreamAsync(request, HttpContext.RequestAborted))
+            {
+                var json = JsonSerializer.Serialize(chunk, _jsonOptions);
+                var data = $"data: {json}\n\n";
+                var bytes = Encoding.UTF8.GetBytes(data);
+                
+                await Response.Body.WriteAsync(bytes, HttpContext.RequestAborted);
+                await Response.Body.FlushAsync(HttpContext.RequestAborted);
+            }
+
+            var doneBytes = Encoding.UTF8.GetBytes("data: [DONE]\n\n");
+            await Response.Body.WriteAsync(doneBytes, HttpContext.RequestAborted);
+
+            stopwatch.Stop();
+
+            _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+                apiKeyHash,
+                provider.ProviderName,
+                request.Model,
+                request.Model,
+                (int)stopwatch.ElapsedMilliseconds,
+                "success",
+                isStreaming: true);
+
+            return new EmptyResult();
         }
-
-        var doneBytes = Encoding.UTF8.GetBytes("data: [DONE]\n\n");
-        await Response.Body.WriteAsync(doneBytes, HttpContext.RequestAborted);
-
-        _ = LogRequestAsync(apiKeyHash, request.Model, provider.ProviderName, null, "streamed");
-
-        return new EmptyResult();
-    }
-
-    // Заглушка для логирования (реализация в Этапе 7)
-    private async Task LogRequestAsync(
-        string? apiKeyHash, 
-        string requestedModel, 
-        string providerName, 
-        ChatCompletionResponse? response, 
-        string? status)
-    {
-        // TODO: Реализация асинхронной записи в RequestLog (Этап 7)
-        await Task.Yield();
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+                apiKeyHash,
+                provider.ProviderName,
+                request.Model,
+                request.Model,
+                (int)stopwatch.ElapsedMilliseconds,
+                "error",
+                error: ex,
+                isStreaming: true);
+            throw;
+        }
     }
 }
