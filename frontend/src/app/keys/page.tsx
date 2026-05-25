@@ -7,22 +7,55 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton'; // <-- Добавлен импорт
+import { Skeleton } from '@/components/ui/skeleton';
 import { KeyForm } from './components/KeyForm';
 import { Plus, Copy, Trash2, Calendar, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const STORAGE_KEY = 'llm-proxy-api-keys';
+
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false); // <-- Используем локальный стейт
+  const [open, setOpen] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Загрузка сохраненных ключей из localStorage
+  const getStoredKeys = (): Record<string, string> => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  // Сохранение ключа в localStorage
+  const storeKey = (id: string, key: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = getStoredKeys();
+      stored[id] = key;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    } catch (err) {
+      console.error('Failed to store key:', err);
+    }
+  };
 
   const loadKeys = async () => {
     try {
       const data = await listApiKeys();
-      setKeys(data);
+      const storedKeys = getStoredKeys();
+      
+      // Добавляем оригинальные ключи из localStorage
+      const keysWithPlain = data.map(key => ({
+        ...key,
+        key: storedKeys[key.id] || undefined
+      }));
+      
+      setKeys(keysWithPlain);
     } catch (e) {
       console.error('Failed to load keys:', e);
     } finally {
@@ -33,7 +66,6 @@ export default function ApiKeysPage() {
   useEffect(() => { loadKeys(); }, []);
 
   const handleCreate = async (data: any) => {
-    // Если permissions не выбраны, используем '*' (все модели)
     const permissions = data.permissions && data.permissions.length > 0 
       ? data.permissions 
       : ['*'];
@@ -43,6 +75,10 @@ export default function ApiKeysPage() {
       permissions,
       expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : undefined,
     });
+    
+    // Сохраняем оригинальный ключ в localStorage
+    storeKey(response.apiKey.id, response.key);
+    
     setNewKey(response.key);
     setOpen(false);
     await loadKeys();
@@ -50,6 +86,18 @@ export default function ApiKeysPage() {
 
   const handleRevoke = async (keyId: string) => {
     if (!confirm('Отозвать этот ключ? Это действие нельзя отменить.')) return;
+    
+    // Удаляем из localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = getStoredKeys();
+        delete stored[keyId];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+      } catch (err) {
+        console.error('Failed to remove key from storage:', err);
+      }
+    }
+    
     await revokeApiKey(keyId);
     await loadKeys();
   };
@@ -58,6 +106,12 @@ export default function ApiKeysPage() {
     await navigator.clipboard.writeText(key);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const getKeyToCopy = (key: ApiKey) => {
+    // Если есть оригинальный ключ (только что создан) - используем его
+    // Иначе - показываем предупреждение, что ключ недоступен
+    return key.key || key.keyHash;
   };
 
   return (
@@ -100,11 +154,11 @@ export default function ApiKeysPage() {
               onClick={() => copyKey(newKey)}
               className={cn('ml-2', copied && 'text-green-600')}
             >
-              <Copy className="h-4 w-4" />
+              {copied ? 'Скопировано!' : <><Copy className="h-4 w-4" /> Копировать</>}
             </Button>
           </AlertDescription>
           <p className="text-xs mt-2 text-green-700">
-            ⚠️ Сохраните этот ключ — он не будет показан снова!
+            Сохраните этот ключ в безопасном месте
           </p>
         </Alert>
       )}
@@ -168,7 +222,7 @@ export default function ApiKeysPage() {
                         </p>
                       )}
                       <p className="text-[10px] font-mono opacity-70">
-                        {key.keyHash.slice(0, 12)}...
+                        {(key.key || key.keyHash).slice(0, 16)}...
                       </p>
                     </div>
                   </div>
@@ -177,8 +231,8 @@ export default function ApiKeysPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => copyKey(key.keyHash)}
-                      title="Скопировать хэш"
+                      onClick={() => copyKey(key.key || key.keyHash)}
+                      title="Скопировать ключ"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>

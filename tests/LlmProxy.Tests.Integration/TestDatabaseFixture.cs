@@ -24,7 +24,6 @@ public class TestDatabaseFixture : IAsyncLifetime
             .WithEnvironment("POSTGRES_DB", "litellm_test")
             .WithPortBinding(5432, true)
             .WithWaitStrategy(Wait.ForUnixContainer()
-                .UntilExternalTcpPortIsAvailable(5432)
                 .UntilMessageIsLogged("database system is ready to accept connections"))
             .Build();
 
@@ -32,7 +31,7 @@ public class TestDatabaseFixture : IAsyncLifetime
             .WithImage("redis:7-alpine")
             .WithPortBinding(6379, true)
             .WithWaitStrategy(Wait.ForUnixContainer()
-                .UntilExternalTcpPortIsAvailable(6379))
+                .UntilMessageIsLogged("Ready to accept connections"))
             .Build();
     }
 

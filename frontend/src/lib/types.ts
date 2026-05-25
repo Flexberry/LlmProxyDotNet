@@ -3,6 +3,7 @@
 export interface ApiKey {
   id: string;
   keyHash: string;
+  key?: string; // Plaintext ключ (только для newly created keys, не сохраняется в БД)
   name?: string;
   permissions: string; // JSON string или "*"
   expiresAt?: string;
