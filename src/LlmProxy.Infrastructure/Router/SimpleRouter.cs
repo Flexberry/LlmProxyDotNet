@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using LlmProxy.Core.Config;
 using LlmProxy.Core.Providers;
 using LlmProxy.Core.Router;
@@ -24,12 +30,18 @@ public class SimpleRouter : ILlmRouter
         IEnumerable<ILlmProvider> availableProviders,
         CancellationToken ct = default)
     {
+        // ИСПРАВЛЕНИЕ: Проверка на null/пустую коллекцию
+        if (availableProviders == null || !availableProviders.Any())
+            throw new InvalidOperationException("No providers available");
+
+        var providersList = availableProviders.ToList();
+
         // 1. Попытка выбрать по префиксу
         var prefix = ExtractPrefix(requestedModel);
         if (!string.IsNullOrEmpty(prefix))
         {
-            var provider = availableProviders.FirstOrDefault(p => 
-                p.Prefix.Equals(prefix, StringComparison.OrdinalIgnoreCase));
+            var provider = providersList.FirstOrDefault(p => 
+                p.Prefix?.Equals(prefix, StringComparison.OrdinalIgnoreCase) == true);
             if (provider != null)
             {
                 _logger.LogDebug("Selected provider {Provider} by prefix {Prefix}", 
@@ -39,35 +51,22 @@ public class SimpleRouter : ILlmRouter
         }
 
         // 2. Fallback: Round-Robin среди всех доступных провайдеров
-        var providers = availableProviders.ToList();
-        if (!providers.Any())
-            throw new InvalidOperationException("No available LLM providers configured");
-
         lock (_lock)
         {
-            var key = requestedModel.ToLowerInvariant();
+            var key = requestedModel?.ToLowerInvariant() ?? "default";
             if (!_roundRobinCounters.ContainsKey(key))
                 _roundRobinCounters[key] = 0;
             
-            var index = _roundRobinCounters[key] % providers.Count;
-            _roundRobinCounters[key] = (_roundRobinCounters[key] + 1) % providers.Count;
+            var index = _roundRobinCounters[key] % providersList.Count;
+            _roundRobinCounters[key] = (_roundRobinCounters[key] + 1) % providersList.Count;
             
-            var selected = providers[index];
+            var selected = providersList[index];
             _logger.LogDebug("Selected provider {Provider} via round-robin for model {Model}", 
                 selected.ProviderName, requestedModel);
             return selected;
         }
     }
 
-    private string? ExtractPrefix(string modelName)
-    {
-        if (string.IsNullOrWhiteSpace(modelName)) return null;
-        
-        var parts = modelName.Split('/', 2);
-        return parts.Length > 1 ? parts[0] + "/" : null;
-    }
-
-    // Метод для обработки fallback при ошибке провайдера
     public async Task<T> ExecuteWithFallback<T>(
         Func<ILlmProvider, CancellationToken, Task<T>> operation,
         string requestedModel,
@@ -75,14 +74,20 @@ public class SimpleRouter : ILlmRouter
         int maxRetries = 2,
         CancellationToken ct = default)
     {
+        // ИСПРАВЛЕНИЕ: Проверка на null
+        if (availableProviders == null)
+            throw new ArgumentNullException(nameof(availableProviders));
+
         var attempted = new HashSet<string>();
-        var lastException = default(Exception);
+        Exception? lastException = null;
 
         for (var attempt = 0; attempt <= maxRetries; attempt++)
         {
-            var provider = await SelectProviderAsync(requestedModel, 
-                availableProviders.Where(p => !attempted.Contains(p.ProviderName)), ct);
-            
+            var available = availableProviders.Where(p => !attempted.Contains(p.ProviderName));
+            if (!available.Any())
+                break;
+
+            var provider = await SelectProviderAsync(requestedModel, available, ct);
             if (provider == null) break;
             
             try
@@ -90,20 +95,19 @@ public class SimpleRouter : ILlmRouter
                 attempted.Add(provider.ProviderName);
                 return await operation(provider, ct);
             }
-            catch (HttpRequestException ex) when (ex.StatusCode is null or >= System.Net.HttpStatusCode.InternalServerError)
+            catch (HttpRequestException ex) 
+                when (ex.StatusCode == null || ex.StatusCode >= HttpStatusCode.InternalServerError)
             {
                 lastException = ex;
                 _logger.LogWarning(ex, "Provider {Provider} failed (attempt {Attempt}), trying fallback", 
                     provider.ProviderName, attempt + 1);
-                // Продолжаем цикл для следующего провайдера
             }
             catch (TaskCanceledException) when (ct.IsCancellationRequested)
             {
-                throw; // Не обрабатываем отмену как ошибку провайдера
+                throw;
             }
             catch (Exception ex)
             {
-                // Клиентские ошибки (4xx) не триггерят fallback
                 _logger.LogError(ex, "Provider {Provider} returned client error", provider.ProviderName);
                 throw;
             }
@@ -112,5 +116,13 @@ public class SimpleRouter : ILlmRouter
         throw new AggregateException(
             $"All fallback attempts failed for model '{requestedModel}'", 
             lastException ?? new InvalidOperationException("No providers available"));
+    }
+
+    private string? ExtractPrefix(string? modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName)) return null;
+        
+        var parts = modelName.Split('/', 2);
+        return parts.Length > 1 ? parts[0] + "/" : null;
     }
 }

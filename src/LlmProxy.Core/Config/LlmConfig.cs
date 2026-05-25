@@ -1,5 +1,11 @@
 namespace LlmProxy.Core.Config;
-public record ProviderSettings(string BaseUrl, string? ApiKey, string Prefix);
+
+public class ProviderSettings
+{
+    public string BaseUrl { get; set; } = string.Empty;
+    public string? ApiKey { get; set; }
+    public string Prefix { get; set; } = string.Empty;
+}
 
 public record LlmConfig
 {

@@ -12,8 +12,11 @@ import { X } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().optional(),
-  permissions: z.array(z.string()).min(1, 'Выберите хотя бы одну модель'),
+  permissions: z.array(z.string()).optional(),
   expiresAt: z.string().optional(),
+}).refine(data => !data.permissions || data.permissions.length === 0 || data.permissions.length > 0, {
+  message: 'Выберите хотя бы одну модель или оставьте пустым для всех',
+  path: ['permissions'],
 });
 
 const MODELS = [
@@ -31,7 +34,7 @@ export function KeyForm({ onSubmit, onCancel }: { onSubmit: (d: z.infer<typeof f
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { permissions: ['*'] }
+    defaultValues: { permissions: [] }
   });
 
   const selected = watch('permissions') || [];

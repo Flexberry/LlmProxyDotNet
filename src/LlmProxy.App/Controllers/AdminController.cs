@@ -61,7 +61,7 @@ public class AdminController : ControllerBase
                 KeyHash = hash,
                 Name = request.Name,
                 Permissions = permissions,
-                ExpiresAt = request.ExpiresAt,
+                ExpiresAt = request.ExpiresAt?.ToUniversalTime(),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -102,6 +102,13 @@ public class AdminController : ControllerBase
             if (_dbContext == null) 
                 return StatusCode(500, new { error = "Database context is not initialized" });
 
+            // Проверка на разумный диапазон дат
+            if (from > to)
+                return BadRequest(new { error = "'from' date must be before 'to' date" });
+            
+            if ((to - from).TotalDays > 30)
+                return BadRequest(new { error = "Date range cannot exceed 30 days" });
+
             var query = _dbContext.RequestLogs
                 .AsNoTracking()
                 .Where(l => l.CreatedAt >= from && l.CreatedAt <= to);
@@ -125,6 +132,8 @@ public class AdminController : ControllerBase
                 .Select(g => new { Provider = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Provider ?? "unknown", x => x.Count);
 
+            _logger.LogInformation($"Stats retrieved: total={total}, success={success}, error={error}");
+
             return Ok(new {
                 totalRequests = total,
                 successCount = success,
@@ -136,8 +145,8 @@ public class AdminController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching stats");
-            return StatusCode(500, new { error = "Failed to fetch stats", details = ex.Message });
+            _logger.LogError(ex, "Error fetching stats: {ErrorMessage}", ex.Message);
+            return StatusCode(500, new { error = "Failed to fetch stats", details = ex.Message, stack = ex.StackTrace });
         }
     }
 }

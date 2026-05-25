@@ -33,13 +33,18 @@ export default function ApiKeysPage() {
   useEffect(() => { loadKeys(); }, []);
 
   const handleCreate = async (data: any) => {
+    // Если permissions не выбраны, используем '*' (все модели)
+    const permissions = data.permissions && data.permissions.length > 0 
+      ? data.permissions 
+      : ['*'];
+    
     const response = await createApiKey({
       name: data.name,
-      permissions: data.permissions,
-      expiresAt: data.expiresAt || undefined,
+      permissions,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : undefined,
     });
     setNewKey(response.key);
-    setOpen(false); // <-- Закрываем диалог
+    setOpen(false);
     await loadKeys();
   };
 

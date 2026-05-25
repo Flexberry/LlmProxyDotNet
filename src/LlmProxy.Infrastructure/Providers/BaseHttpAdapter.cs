@@ -24,6 +24,13 @@ public abstract class BaseHttpAdapter
             _httpClient.BaseAddress = new Uri(settings.BaseUrl);
         
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "LlmProxyDotNet/1.0");
+        
+        // Добавляем API ключ, если он есть
+        if (!string.IsNullOrEmpty(settings.ApiKey))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = 
+                new AuthenticationHeaderValue("Bearer", settings.ApiKey);
+        }
     }
 
     protected async Task<TResponse> SendRequestAsync<TRequest, TResponse>(

@@ -1,4 +1,4 @@
-// frontend/lib/api.ts
+// frontend/src/lib/api.ts
 import { 
   ApiKey, 
   CreateApiKeyRequest, 
@@ -9,20 +9,18 @@ import {
 } from './types';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
-const MASTER_KEY = process.env.NEXT_PUBLIC_LITELLM_MASTER_KEY; 
+const MASTER_KEY = process.env.NEXT_PUBLIC_LITELLM_MASTER_KEY;
 
-async function fetchBackend<T>(
+export async function fetchBackend<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
   const headers = new Headers(options.headers);
   
-  // Теперь MASTER_KEY будет определен в браузере
   if (MASTER_KEY) {
     headers.set('X-Admin-Key', MASTER_KEY);
   }
   
-  // Добавляем Content-Type только если есть тело запроса или это не GET
   if (!headers.has('Content-Type') && options.body) {
      headers.set('Content-Type', 'application/json');
   } else if (!headers.has('Content-Type') && options.method !== 'GET') {
@@ -40,8 +38,9 @@ async function fetchBackend<T>(
         throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // Обработка пустых ответов (например, 204 No Content при удалении)
-      if (response.status === 204 || response.headers.get("content-length") === "0") {
+      // ИСПРАВЛЕНИЕ: Безопасная проверка headers
+      const contentLength = response.headers?.get("content-length");
+      if (response.status === 204 || contentLength === "0") {
           return {} as T;
       }
 
@@ -51,16 +50,20 @@ async function fetchBackend<T>(
       throw error;
   }
 }
-// === API Keys ===
 
 export async function listApiKeys(): Promise<ApiKey[]> {
   return fetchBackend<ApiKey[]>('/admin/keys');
 }
 
 export async function createApiKey(data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
+  // Преобразуем expiresAt в ISO формат с timezone, если он указан
+  const payload = {
+    ...data,
+    expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : undefined,
+  };
   return fetchBackend<CreateApiKeyResponse>('/admin/keys', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -70,13 +73,9 @@ export async function revokeApiKey(keyId: string): Promise<void> {
   });
 }
 
-// === Models ===
-
 export async function listModels(): Promise<ModelsListResponse> {
   return fetchBackend<ModelsListResponse>('/v1/models');
 }
-
-// === Stats ===
 
 export async function getStats(from: Date, to: Date): Promise<LogStats> {
   const params = new URLSearchParams({
@@ -86,15 +85,12 @@ export async function getStats(from: Date, to: Date): Promise<LogStats> {
   return fetchBackend<LogStats>(`/admin/stats?${params}`);
 }
 
-// === Chat Completion (через прокси для CORS) ===
-
 export async function createChatCompletion(
   request: ChatCompletionRequest,
   userApiKey: string,
   onChunk?: (chunk: any) => void
 ): Promise<any> {
   if (request.stream && onChunk) {
-    // Streaming через SSE
     return streamChatCompletion(request, userApiKey, onChunk);
   }
 
@@ -143,9 +139,8 @@ async function streamChatCompletion(
 
     buffer += decoder.decode(value, { stream: true });
     
-    // Парсинг SSE: data: {...}\n\n
     const lines = buffer.split('\n');
-    buffer = lines.pop() || ''; // Сохраняем неполную строку
+    buffer = lines.pop() || ''; 
 
     for (const line of lines) {
       if (line.startsWith('data: ')) {

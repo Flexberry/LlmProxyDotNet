@@ -4,4 +4,8 @@
     <Project Path="src/LlmProxy.Core/LlmProxy.Core.csproj" />
     <Project Path="src/LlmProxy.Infrastructure/LlmProxy.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LlmProxy.Tests.Integration/LlmProxy.Tests.Integration.csproj" />
+    <Project Path="tests/LlmProxy.Tests.Unit/LlmProxy.Tests.Unit.csproj" />
+  </Folder>
 </Solution>

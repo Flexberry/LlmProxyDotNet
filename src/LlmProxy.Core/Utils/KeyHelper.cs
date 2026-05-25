@@ -1,46 +1,44 @@
+using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 
 namespace LlmProxy.Core.Utils;
 
 public static class KeyHelper
 {
-    // Генерация ключа формата sk-... (32 байта, base64)
+    private const int KeyLength = 32;
+    
     public static string GenerateApiKey(string prefix = "sk")
     {
-        var bytes = new byte[24];
-        RandomNumberGenerator.Fill(bytes);
-        var key = Convert.ToBase64String(bytes)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .Replace("=", "");
-        return $"{prefix}_{key}";
+        var bytes = new byte[KeyLength];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(bytes);
+        return $"{prefix}_{Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "")}";
     }
-
-    // SHA256 хэширование для безопасного хранения
+    
     public static string HashKey(string key)
     {
         using var sha256 = SHA256.Create();
-        var bytes = Encoding.UTF8.GetBytes(key);
-        var hash = sha256.ComputeHash(bytes);
+        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(key));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
-
-    // Парсинг разрешений моделей (JSON массив или "*")
-    public static bool HasModelPermission(string permissions, string modelName)
+    
+    public static bool HasModelPermission(string? permissions, string model)
     {
-        if (string.IsNullOrWhiteSpace(permissions) || permissions == "*")
+        // ИСПРАВЛЕНИЕ: Пустые права = запрет доступа
+        if (string.IsNullOrWhiteSpace(permissions))
+            return false;
+        
+        // Wildcard разрешает всё
+        if (permissions.Trim() == "*")
             return true;
         
-        try
-        {
-            var allowedModels = JsonSerializer.Deserialize<string[]>(permissions);
-            return allowedModels?.Any(m => m == "*" || m == modelName) == true;
-        }
-        catch
-        {
-            return false;
-        }
+        // Точное совпадение по списку разрешённых моделей
+        var allowedModels = permissions
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(m => m.Trim());
+        
+        return allowedModels.Contains(model, StringComparer.OrdinalIgnoreCase);
     }
 }

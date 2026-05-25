@@ -17,15 +17,22 @@ using LlmProxy.App.Middleware;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var logger = NullLogger<Program>.Instance;
+
 // 1. EF Core & Redis
+var connectionString = builder.Configuration["DATABASE_URL"] ?? builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<LlmProxyDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration["DATABASE_URL"] ?? builder.Configuration.GetConnectionString("DefaultConnection")));
+    opt.UseNpgsql(connectionString));
+
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    var cfg = ConfigurationOptions.Parse(builder.Configuration["REDIS_CONNECTION"] ?? "localhost:6379");
+    var redisConn = builder.Configuration["REDIS_CONNECTION"] ?? "localhost:6379";
+    var cfg = ConfigurationOptions.Parse(redisConn);
     cfg.AbortOnConnectFail = false;
     return ConnectionMultiplexer.Connect(cfg);
 });
@@ -42,18 +49,48 @@ void RegisterProvider<T>(string key) where T : class, ILlmProvider
     builder.Services.AddSingleton<ILlmProvider>(sp =>
     {
         var cfg = sp.GetRequiredService<IOptions<LlmConfig>>().Value;
+        
+        // Проверка наличия секции
+        if (!cfg.Providers.TryGetValue(key, out var settings))
+        {
+            // Если провайдера нет в конфиге, логируем и возвращаем null или кидаем исключение
+            // Для MVP лучше кидать исключение, чтобы сразу видеть проблему
+            throw new InvalidOperationException($"Provider '{key}' is missing in LlmConfig section.");
+        }
+
         var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("LlmClient");
         var log = sp.GetRequiredService<ILogger<T>>();
-        if (cfg.Providers.TryGetValue(key, out var settings))
+        
+        try 
+        {
             return (T)Activator.CreateInstance(typeof(T), http, settings, log)!;
-        throw new InvalidOperationException($"Provider '{key}' not configured");
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to create provider '{key}': {ex.Message}", ex);
+        }
     });
 }
-RegisterProvider<OpenAIAdapter>("openai");
-RegisterProvider<OllamaAdapter>("ollama");
-RegisterProvider<VllmAdapter>("vllm");
-RegisterProvider<OpenRouterAdapter>("openrouter");
-RegisterProvider<ZAiAdapter>("zai");
+
+// Регистрируем только те провайдеры, которые есть в конфиге
+var llmConfig = builder.Configuration.GetSection("LlmConfig").Get<LlmConfig>() ?? new LlmConfig();
+logger.LogInformation($"Loaded providers from config: {string.Join(", ", llmConfig.Providers.Keys)}");
+
+foreach (var providerKey in llmConfig.Providers.Keys)
+{
+    if (providerKey == "openai")
+        RegisterProvider<OpenAIAdapter>("openai");
+    else if (providerKey == "ollama")
+        RegisterProvider<OllamaAdapter>("ollama");
+    else if (providerKey == "vllm")
+        RegisterProvider<VllmAdapter>("vllm");
+    else if (providerKey == "openrouter")
+        RegisterProvider<OpenRouterAdapter>("openrouter");
+    else if (providerKey == "zai")
+        RegisterProvider<ZAiAdapter>("zai");
+    else
+        logger.LogWarning($"Unknown provider: {providerKey}");
+}
 
 // 5. Core Services
 builder.Services.AddSingleton<ProviderFactory>();
@@ -62,7 +99,15 @@ builder.Services.AddScoped<IApiKeyStore, DatabaseApiKeyStore>();
 
 // 6. Logging Service
 builder.Services.AddSingleton<ILoggingService, DatabaseLoggingService>();
-builder.Services.AddHostedService<LogBatchWriterService>();
+// ИСПРАВЛЕНИЕ ДАШБОРДА: Уменьшаем интервал до 2 секунд для быстрой отдачи статистики
+builder.Services.AddHostedService(sp => 
+    new LogBatchWriterService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<ILogger<LogBatchWriterService>>(),
+        flushInterval: TimeSpan.FromSeconds(2),
+        batchSize: 1
+    )
+);
 
 // 7. MVC & JSON
 builder.Services.AddControllers().AddJsonOptions(opt =>
@@ -71,12 +116,12 @@ builder.Services.AddControllers().AddJsonOptions(opt =>
     opt.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 });
 
-// 1. Добавляем политику CORS
+// 8. CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000") // Разрешаем Next.js
+        policy.WithOrigins("http://localhost:3000")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -84,9 +129,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Apply migrations (Dev only, remove in Prod)
-using var scope = app.Services.CreateScope();
-scope.ServiceProvider.GetRequiredService<LlmProxyDbContext>().Database.Migrate();
+// Apply migrations
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<LlmProxyDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseRouting();
 app.UseCors("AllowFrontend");

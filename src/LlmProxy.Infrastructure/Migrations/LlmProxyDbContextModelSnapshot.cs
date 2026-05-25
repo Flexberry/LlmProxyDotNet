@@ -39,14 +39,16 @@ namespace LlmProxy.Infrastructure.Migrations
 
                     b.Property<string>("KeyHash")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Name")
                         .HasColumnType("text");
 
                     b.Property<string>("Permissions")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
 
