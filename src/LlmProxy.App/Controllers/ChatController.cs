@@ -75,7 +75,7 @@ public class ChatController : ControllerBase
                 
                 stopwatch.Stop();
                 
-                _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+                _ = _loggingService.LogRequestAsync(
                     apiKeyHash,
                     provider.ProviderName,
                     request.Model,
@@ -88,11 +88,28 @@ public class ChatController : ControllerBase
                 return Ok(response);
             }
         }
+        catch (HttpRequestException httpEx)
+        {
+            stopwatch.Stop();
+            _logger.LogWarning(httpEx, "HTTP error from provider");
+            
+            _ = _loggingService.LogRequestAsync(
+                apiKeyHash,
+                "unknown",
+                request.Model,
+                request.Model,
+                (int)stopwatch.ElapsedMilliseconds,
+                "error",
+                error: httpEx);
+            
+            return StatusCode((int)httpEx.StatusCode, new { error = "Provider error", message = httpEx.Message });
+        }
         catch (Exception ex)
         {
             stopwatch.Stop();
+            _logger.LogError(ex, "Error processing chat completion");
             
-            _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+            _ = _loggingService.LogRequestAsync(
                 apiKeyHash,
                 "unknown",
                 request.Model,
@@ -101,7 +118,7 @@ public class ChatController : ControllerBase
                 "error",
                 error: ex);
             
-            throw;
+            return StatusCode(502, new { error = "Bad Gateway", message = ex.Message });
         }
     }
 
@@ -116,6 +133,11 @@ public class ChatController : ControllerBase
 
         try
         {
+            if (provider == null)
+            {
+                return BadRequest(new { error = "Provider not found" });
+            }
+
             await foreach (var chunk in provider.CreateChatCompletionStreamAsync(request, HttpContext.RequestAborted))
             {
                 var json = JsonSerializer.Serialize(chunk, _jsonOptions);
@@ -131,7 +153,7 @@ public class ChatController : ControllerBase
 
             stopwatch.Stop();
 
-            _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+            _ = _loggingService.LogRequestAsync(
                 apiKeyHash,
                 provider.ProviderName,
                 request.Model,
@@ -145,9 +167,9 @@ public class ChatController : ControllerBase
         catch (Exception ex)
         {
             stopwatch.Stop();
-            _ = _loggingService.LogRequestAsync(  // <-- ТЕПЕРЬ РАБОТАЕТ
+            _ = _loggingService.LogRequestAsync(
                 apiKeyHash,
-                provider.ProviderName,
+                provider?.ProviderName ?? "unknown",
                 request.Model,
                 request.Model,
                 (int)stopwatch.ElapsedMilliseconds,

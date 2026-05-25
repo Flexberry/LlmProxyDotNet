@@ -94,7 +94,11 @@ foreach (var providerKey in llmConfig.Providers.Keys)
 
 // 5. Core Services
 builder.Services.AddSingleton<ProviderFactory>();
+
+// Register both routers - SimpleRouter is default, LeastBusyRouter available for injection
 builder.Services.AddSingleton<ILlmRouter, SimpleRouter>();
+builder.Services.AddSingleton<LeastBusyRouter>();
+
 builder.Services.AddScoped<IApiKeyStore, DatabaseApiKeyStore>();
 
 // 6. Logging Service

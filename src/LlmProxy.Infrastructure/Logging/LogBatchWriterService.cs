@@ -16,7 +16,6 @@ public class LogBatchWriterService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<LogBatchWriterService> _logger;
-    private readonly Channel<RequestLog> _logChannel;
     private readonly TimeSpan _flushInterval;
     private readonly int _batchSize;
 
