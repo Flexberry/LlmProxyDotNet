@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Key, Blocks, Settings, Bot } from 'lucide-react';
+import { LayoutDashboard, Key, Blocks, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
@@ -18,7 +18,6 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex w-64 flex-col border-r bg-card">
       <div className="flex h-16 items-center gap-2 px-6 border-b">
-        <Bot className="h-6 w-6 text-primary" />
         <span className="font-semibold text-lg">LLM Proxy</span>
       </div>
       
