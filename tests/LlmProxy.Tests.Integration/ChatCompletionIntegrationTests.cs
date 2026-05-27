@@ -14,10 +14,8 @@ namespace LlmProxy.Tests.Integration;
 /// These tests verify the full request flow from client to provider adapters.
 /// </summary>
 public class ChatCompletionIntegrationTests 
-    : IClassFixture<CustomWebApplicationFactory>, 
-      IClassFixture<TestDatabaseFixture>
+    : IClassFixture<TestDatabaseFixture>
 {
-    private readonly CustomWebApplicationFactory _factory;
     private readonly TestDatabaseFixture _dbFixture;
     private readonly HttpClient _client;
 
@@ -25,8 +23,8 @@ public class ChatCompletionIntegrationTests
         TestDatabaseFixture dbFixture)
     {
         _dbFixture = dbFixture;
-        _factory = new CustomWebApplicationFactory(dbFixture);
-        _client = _factory.CreateClient();
+        var factory = new CustomWebApplicationFactory(dbFixture);
+        _client = factory.CreateClient();
     }
 
     [Fact]
@@ -142,9 +140,10 @@ public class ChatCompletionIntegrationTests
         });
         await _dbFixture.DbContext.SaveChangesAsync();
 
+        // Use Ollama model to avoid external API dependency
         var request = new 
         { 
-            model = "openai/gpt-4o", 
+            model = "ollama/llama3", 
             messages = new[] { new { role = "user", content = "Test" } } 
         };
         _client.DefaultRequestHeaders.Authorization = 
@@ -153,9 +152,11 @@ public class ChatCompletionIntegrationTests
         // Act
         var response = await _client.PostAsJsonAsync("/v1/chat/completions", request);
 
-        // Assert
-        Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        // Assert - should not be forbidden (authentication and permissions passed)
+        // Note: May still fail due to provider errors (e.g., Ollama not running)
+        // The key point is it should NOT be 403 Forbidden from permission check
         Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
@@ -185,6 +186,7 @@ public class ChatCompletionIntegrationTests
         var response = await _client.PostAsJsonAsync("/v1/chat/completions", request);
 
         // Assert
+        // Should be 400 (validation error) - authentication already passed
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -216,6 +218,7 @@ public class ChatCompletionIntegrationTests
         var response = await _client.PostAsJsonAsync("/v1/chat/completions", request);
 
         // Assert
+        // Should be 400 (validation error) - authentication already passed
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }
