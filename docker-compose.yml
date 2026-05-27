@@ -39,9 +39,14 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  # Ollama - локальный LLM
+  # Ollama - локальный LLM с автоматической загрузкой моделей
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: docker/ollama
+      dockerfile: Dockerfile
+    environment:
+      # Список моделей для автоматической загрузки (через пробел)
+      - OLLAMA_MODELS=llama3.2:latest mistral:latest
     ports:
       - "11434:11434"
     volumes:

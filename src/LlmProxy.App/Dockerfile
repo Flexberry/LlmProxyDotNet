@@ -8,7 +8,7 @@ COPY src/LlmProxy.Infrastructure/LlmProxy.Infrastructure.csproj ./LlmProxy.Infra
 COPY src/LlmProxy.App/LlmProxy.App.csproj ./LlmProxy.App/
 
 # Restore dependencies
-RUN dotnet restore "./src/LlmProxy.App/LlmProxy.App.csproj"
+RUN dotnet restore "./LlmProxy.App/LlmProxy.App.csproj"
 
 # Copy source code
 COPY src/LlmProxy.Core/. ./LlmProxy.Core/
@@ -16,7 +16,7 @@ COPY src/LlmProxy.Infrastructure/. ./LlmProxy.Infrastructure/
 COPY src/LlmProxy.App/. ./LlmProxy.App/
 
 # Build
-WORKDIR "/src/src/LlmProxy.App"
+WORKDIR "/src/LlmProxy.App"
 RUN dotnet build "LlmProxy.App.csproj" -c Release -o /app/build
 
 # Publish
@@ -28,8 +28,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 4000
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser
+# Create non-root user with unique UID
+RUN useradd -m -u 1001 appuser
 USER appuser
 
 COPY --from=publish /app/publish .
