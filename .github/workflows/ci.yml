@@ -38,11 +38,8 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Build solution
-        run: dotnet build --no-restore --configuration Release
-
       - name: Run Unit Tests
-        run: dotnet test tests/LlmProxy.Tests.Unit --no-build --verbosity normal
+        run: dotnet test tests/LlmProxy.Tests.Unit/LlmProxy.Tests.Unit.csproj --verbosity normal
 
   # ─── Frontend: сборка + тесты ───
   frontend:
@@ -123,15 +120,12 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Build solution
-        run: dotnet build --no-restore --configuration Release
-
       - name: Run Integration Tests
         env:
           DATABASE_URL: Host=localhost;Port=5432;Database=litellm;Username=user;Password=password
           REDIS_CONNECTION: localhost:6379
           LITELLM_MASTER_KEY: sk_test_ci_key
-        run: dotnet test tests/LlmProxy.Tests.Integration --no-build --verbosity normal
+        run: dotnet test tests/LlmProxy.Tests.Integration/LlmProxy.Tests.Integration.csproj --verbosity normal
 
   # ─── Docker Compose sanity check ───
   docker-compose:
