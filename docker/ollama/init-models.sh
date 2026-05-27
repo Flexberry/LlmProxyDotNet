@@ -1,30 +1,46 @@
 #!/bin/bash
-# /docker-entrypoint.d/01-pull-models.sh
+# Скрипт запуска Ollama с автоматической загрузкой моделей
 
 set -e
 
-echo "=== Ollama Model Initialization ==="
+echo "=== Starting Ollama Server ==="
 
-# Файл маркер, чтобы избежать повторной загрузки
-MARKER_FILE="/root/.ollama/models_loaded"
+# Запускаем ollama serve в фоне
+ollama serve &
+OLLAMA_PID=$!
 
-if [ -f "$MARKER_FILE" ]; then
-    echo "Models already loaded, skipping..."
-    exit 0
-fi
-
-# Список моделей для загрузки (настраивается через переменные окружения)
-MODELS_TO_PULL="${OLLAMA_MODELS:-llama3.2:latest mistral:latest}"
-
-for model in $MODELS_TO_PULL; do
-    echo "Pulling model: $model"
-    ollama pull "$model" || {
-        echo "Warning: Failed to pull $model, continuing..."
-    }
+# Ждём готовности сервера
+echo "Waiting for Ollama to be ready..."
+for i in $(seq 1 30); do
+    if kill -0 $OLLAMA_PID 2>/dev/null; then
+        if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+            echo "Ollama is ready!"
+            break
+        fi
+    else
+        echo "ERROR: ollama serve died"
+        exit 1
+    fi
+    sleep 1
 done
 
-# Создаем маркер
-touch "$MARKER_FILE"
+# Файл-маркер, чтобы избежать повторной загрузки
+MARKER_FILE="/root/.ollama/models_loaded"
 
-echo "=== Model initialization complete ==="
-ollama list
+if [ ! -f "$MARKER_FILE" ]; then
+    MODELS_TO_PULL="${OLLAMA_MODELS:-llama3.2:latest}"
+    echo "=== Pulling models: $MODELS_TO_PULL ==="
+    for model in $MODELS_TO_PULL; do
+        echo "Pulling: $model"
+        ollama pull "$model" || echo "Warning: Failed to pull $model"
+    done
+    touch "$MARKER_FILE"
+    echo "=== Models loaded ==="
+    ollama list
+else
+    echo "Models already loaded, skipping..."
+fi
+
+# Держим контейнер живым, ждём завершения ollama serve
+echo "=== Ollama running ==="
+wait $OLLAMA_PID

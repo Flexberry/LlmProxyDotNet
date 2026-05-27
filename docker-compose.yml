@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Backend .NET API
   app:
     build:
       context: .
@@ -8,17 +9,48 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      # PostgreSQL - явное подключение к контейнеру postgres
+      - DATABASE_URL=Host=postgres;Port=5432;Database=litellm;Username=user;Password=password
+      # Мастер ключ (для админ-панели)
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      # Конфигурация провайдеров
       - DEFAULT_PROVIDER=${DEFAULT_PROVIDER:-openai}
-      - REDIS_CONNECTION=${REDIS_CONNECTION:-redis://redis:6379}
+      - REDIS_CONNECTION=redis://redis:6379
+      # API ключи провайдеров (через переменные окружения)
+      - LlmConfig__Providers__openai__ApiKey=${OPENAI_API_KEY}
+      - LlmConfig__Providers__openrouter__ApiKey=${OPENROUTER_API_KEY}
+      - LlmConfig__Providers__zai__ApiKey=${ZAI_API_KEY}
+      # Internal URLs для локальных провайдеров
+      - LlmConfig__Providers__ollama__BaseUrl=http://ollama:11434
+      - LlmConfig__Providers__vllm__BaseUrl=http://vllm:8000
     depends_on:
       - postgres
       - redis
+      - ollama
+      - vllm
     restart: unless-stopped
     volumes:
       - app_logs:/app/logs
+    networks:
+      - llm-network
 
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
+      - NEXT_PUBLIC_LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - llm-network
+
+  # PostgreSQL database
   postgres:
     image: postgres:16-alpine
     ports:
@@ -30,7 +62,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - llm-network
 
+  # Redis cache
   redis:
     image: redis:7-alpine
     ports:
@@ -38,20 +73,23 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    networks:
+      - llm-network
 
-  # Ollama - локальный LLM с автоматической загрузкой моделей
+  # Ollama - локальный LLM
   ollama:
     build:
       context: docker/ollama
       dockerfile: Dockerfile
     environment:
-      # Список моделей для автоматической загрузки (через пробел)
       - OLLAMA_MODELS=llama3.2:latest mistral:latest
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+    networks:
+      - llm-network
 
   # vLLM - OpenAI-compatible
   vllm:
@@ -63,6 +101,8 @@ services:
     volumes:
       - vllm_data:/root/.cache/huggingface
     restart: unless-stopped
+    networks:
+      - llm-network
 
 volumes:
   postgres_data:
@@ -70,3 +110,7 @@ volumes:
   ollama_data:
   vllm_data:
   app_logs:
+
+networks:
+  llm-network:
+    driver: bridge

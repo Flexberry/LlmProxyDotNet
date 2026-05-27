@@ -58,6 +58,20 @@ void RegisterProvider<T>(string key) where T : class, ILlmProvider
             throw new InvalidOperationException($"Provider '{key}' is missing in LlmConfig section.");
         }
 
+        // ИСПРАВЛЕНИЕ: Подстановка API ключей из переменных окружения
+        if (key == "openai" && string.IsNullOrEmpty(settings.ApiKey))
+        {
+            settings.ApiKey = builder.Configuration["OPENAI_API_KEY"];
+        }
+        else if (key == "openrouter" && string.IsNullOrEmpty(settings.ApiKey))
+        {
+            settings.ApiKey = builder.Configuration["OPENROUTER_API_KEY"];
+        }
+        else if (key == "zai" && string.IsNullOrEmpty(settings.ApiKey))
+        {
+            settings.ApiKey = builder.Configuration["ZAI_API_KEY"];
+        }
+
         var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("LlmClient");
         var log = sp.GetRequiredService<ILogger<T>>();
         
@@ -125,7 +139,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        // Разрешаем frontend с любого источника при запуске в Docker
+        var frontendUrl = builder.Configuration["FRONTEND_URL"] ?? "http://localhost:3000";
+        policy.WithOrigins(frontendUrl, "http://localhost:3000", "http://frontend:3000")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

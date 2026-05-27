@@ -22,37 +22,49 @@ public class DatabaseApiKeyStore : IApiKeyStore
 
     public async Task<ApiKey?> GetByKeyHashAsync(string keyHash, CancellationToken ct = default)
     {
-        var db = _redis.GetDatabase();
-        var cached = await db.StringGetAsync($"{CachePrefix}{keyHash}");
-        
-        if (cached.HasValue)
+        // Пытаемся получить из кэша Redis (если доступен)
+        try
         {
-            // Явное приведение к string устраняет неоднозначность
-            var cachedString = cached.ToString();
+            var db = _redis.GetDatabase();
+            var cached = await db.StringGetAsync($"{CachePrefix}{keyHash}");
             
-            // Если в кэше маркер отсутствия ключа
-            if (cachedString == "null") return null;
-            
-            return JsonSerializer.Deserialize<ApiKey>(cachedString);
+            if (cached.HasValue)
+            {
+                // Явное приведение к string устраняет неоднозначность
+                var cachedString = cached.ToString();
+                
+                // Если в кэше маркер отсутствия ключа
+                if (cachedString == "null") return null;
+                
+                return JsonSerializer.Deserialize<ApiKey>(cachedString);
+            }
         }
-
-        // 2. Запрос к БД
+        catch (Exception ex)
+        {
+            // Redis недоступен - продолжаем без кэша
+            Console.WriteLine($"Warning: Redis cache unavailable: {ex.Message}");
+        }
+        
+        // Запрос к БД (fallback если Redis недоступен или кэш не найден)
         var key = await _db.ApiKeys
             .AsNoTracking()
             .FirstOrDefaultAsync(k => k.KeyHash == keyHash && k.IsActive, ct);
 
-        // 3. Кэширование результата
+        // Пытаемся закэшировать результат (без ошибки если Redis недоступен)
         if (key != null)
         {
-            await db.StringSetAsync(
-                $"{CachePrefix}{keyHash}", 
-                JsonSerializer.Serialize(key), 
-                _cacheTtl);
-        }
-        else
-        {
-            // Кэшируем отсутствие ключа на 1 минуту
-            await db.StringSetAsync($"{CachePrefix}{keyHash}", "null", TimeSpan.FromMinutes(1));
+            try
+            {
+                var db = _redis.GetDatabase();
+                await db.StringSetAsync(
+                    $"{CachePrefix}{keyHash}", 
+                    JsonSerializer.Serialize(key), 
+                    _cacheTtl);
+            }
+            catch
+            {
+                // Игнорируем ошибку кэширования
+            }
         }
 
         return key;
@@ -73,9 +85,18 @@ public class DatabaseApiKeyStore : IApiKeyStore
         key.IsActive = false;
         await _db.SaveChangesAsync(ct);
         
-        // Инвалидация кэша
-        var db = _redis.GetDatabase();
-        await db.KeyDeleteAsync($"{CachePrefix}{key.KeyHash}");
+        // Инвалидация кэша (без ошибки если Redis недоступен)
+        try
+        {
+            var db = _redis.GetDatabase();
+            await db.KeyDeleteAsync($"{CachePrefix}{key.KeyHash}");
+        }
+        catch (Exception ex)
+        {
+            // Логгируем, но не прерываем операцию, если Redis недоступен
+            // Кэш устареет автоматически после TTL (5 минут)
+            Console.WriteLine($"Warning: Failed to invalidate Redis cache: {ex.Message}");
+        }
         
         return true;
     }
