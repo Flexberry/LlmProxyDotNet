@@ -10,16 +10,16 @@ using Xunit;
 
 namespace LlmProxy.Tests.Integration;
 
-public class ApiKeyAuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IClassFixture<TestDatabaseFixture>
+public class ApiKeyAuthIntegrationTests : IClassFixture<TestDatabaseFixture>
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly TestDatabaseFixture _dbFixture;
     private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public ApiKeyAuthIntegrationTests(WebApplicationFactory<Program> factory, TestDatabaseFixture dbFixture)
+    public ApiKeyAuthIntegrationTests(TestDatabaseFixture dbFixture)
     {
-        _factory = factory;
         _dbFixture = dbFixture;
+        _factory = new CustomWebApplicationFactory(dbFixture);
         _client = _factory.CreateClient();
     }
 

@@ -14,6 +14,7 @@ public class TestDatabaseFixture : IAsyncLifetime
     
     public LlmProxyDbContext? DbContext { get; private set; }
     public string ConnectionString { get; private set; } = string.Empty;
+    public string RedisConnection { get; private set; } = string.Empty;
 
     public TestDatabaseFixture()
     {
@@ -40,8 +41,8 @@ public class TestDatabaseFixture : IAsyncLifetime
         await _postgres.StartAsync();
         await _redis.StartAsync();
         
-        // ИСПРАВЛЕНИЕ: Добавлен SslMode=Disable для избежания ошибок SSL в контейнере
         ConnectionString = $"Host={_postgres.Hostname};Port={_postgres.GetMappedPublicPort(5432)};Database=litellm_test;Username=test;Password=test;SslMode=Disable";
+        RedisConnection = $"{_redis.Hostname}:{_redis.GetMappedPublicPort(6379)}";
         
         var options = new DbContextOptionsBuilder<LlmProxyDbContext>()
             .UseNpgsql(ConnectionString)

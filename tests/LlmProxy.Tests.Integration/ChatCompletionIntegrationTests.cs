@@ -14,19 +14,18 @@ namespace LlmProxy.Tests.Integration;
 /// These tests verify the full request flow from client to provider adapters.
 /// </summary>
 public class ChatCompletionIntegrationTests 
-    : IClassFixture<WebApplicationFactory<Program>>, 
+    : IClassFixture<CustomWebApplicationFactory>, 
       IClassFixture<TestDatabaseFixture>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
     private readonly TestDatabaseFixture _dbFixture;
     private readonly HttpClient _client;
 
     public ChatCompletionIntegrationTests(
-        WebApplicationFactory<Program> factory, 
         TestDatabaseFixture dbFixture)
     {
-        _factory = factory;
         _dbFixture = dbFixture;
+        _factory = new CustomWebApplicationFactory(dbFixture);
         _client = _factory.CreateClient();
     }
 

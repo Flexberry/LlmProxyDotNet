@@ -9,16 +9,16 @@ using Xunit;
 
 namespace LlmProxy.Tests.Integration;
 
-public class StreamingIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IClassFixture<TestDatabaseFixture>
+public class StreamingIntegrationTests : IClassFixture<TestDatabaseFixture>
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly TestDatabaseFixture _dbFixture;
     private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public StreamingIntegrationTests(WebApplicationFactory<Program> factory, TestDatabaseFixture dbFixture)
+    public StreamingIntegrationTests(TestDatabaseFixture dbFixture)
     {
-        _factory = factory;
         _dbFixture = dbFixture;
+        _factory = new CustomWebApplicationFactory(dbFixture);
         _client = _factory.CreateClient();
     }
 
