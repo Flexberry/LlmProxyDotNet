@@ -72,9 +72,9 @@ public class OllamaAdapter : BaseHttpAdapter, ILlmProvider
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        string? line;
+        while (!ct.IsCancellationRequested && (line = await reader.ReadLineAsync(ct)) != null)
         {
-            var line = await reader.ReadLineAsync(ct);
             if (string.IsNullOrWhiteSpace(line)) continue;
             
             var chunk = JsonSerializer.Deserialize<OllamaStreamResponse>(line, BaseHttpAdapter.JsonOptions);
@@ -97,12 +97,41 @@ public class OllamaAdapter : BaseHttpAdapter, ILlmProvider
         var response = await _httpClient.PostAsync("/api/embed", content, ct);
         response.EnsureSuccessStatusCode();
         
-        // Упрощённый маппинг (полная реализация требует парсинга Ollama embedding response)
+        // Читаем и десериализуем ответ Ollama
+        var responseContent = await response.Content.ReadAsStringAsync(ct);
+        
+        // Ollama возвращает: { "embeddings": [[...floats...]], ... }
+        using var doc = JsonDocument.Parse(responseContent);
+        
+        var embeddings = new List<EmbeddingData>();
+        var root = doc.RootElement;
+        
+        if (root.TryGetProperty("embeddings", out var embeddingsProp))
+        {
+            var index = 0;
+            foreach (var embeddingArray in embeddingsProp.EnumerateArray())
+            { 
+                var floatArray = new List<float>();
+                foreach (var num in embeddingArray.EnumerateArray())
+                {
+                    floatArray.Add(num.GetSingle());
+                }
+                embeddings.Add(new EmbeddingData { Index = index++, Embedding = floatArray });
+            }
+        }
+        
+        // Получаем token usage если доступен
+        var usage = new Usage { PromptTokens = 0, CompletionTokens = 0, TotalTokens = 0 };
+        if (root.TryGetProperty("total_token_count", out var tokenCount))
+        {
+            usage = new Usage { PromptTokens = tokenCount.GetInt32(), TotalTokens = tokenCount.GetInt32() };
+        }
+        
         return new EmbeddingResponse
         {
             Model = request.Model,
-            Data = Array.Empty<EmbeddingData>(),
-            Usage = new Usage { PromptTokens = 0, CompletionTokens = 0, TotalTokens = 0 }
+            Data = embeddings.ToArray(),
+            Usage = usage
         };
     }
 

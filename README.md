@@ -220,7 +220,7 @@ npm run dev
 
 ## Архитектура
 
-```
+```text
 Клиент (OpenAI SDK)
     ↓
 API Layer .NET (Аутентификация + Валидация)
@@ -236,7 +236,7 @@ Provider Adapter (Ollama/vLLM/OpenAI/OpenRouter/Z.ai)
 
 ## Структура проекта
 
-```
+```text
 .
 ├── src/
 │   ├── LlmProxy.App/          # Backend ASP.NET Core

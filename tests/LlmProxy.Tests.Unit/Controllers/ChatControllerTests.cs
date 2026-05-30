@@ -110,9 +110,21 @@ public class ChatControllerTests
     {
         var request = new ChatCompletionRequest { Model = "openai/gpt-4", Messages = [new ChatMessage { Role = "user", Content = "Hello" }], Stream = true };
         
-        // В мок-режиме просто проверяем, что метод не падает
+        // Setup mock provider for streaming
+        var mockProvider = CreateMockProvider("openai");
+        _mockRouter.Setup(r => r.SelectProviderAsync(It.IsAny<string>(), It.IsAny<IEnumerable<ILlmProvider>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockProvider);
+
         var result = await _controller.CreateChatCompletion(request);
+        
+        // Для streaming после отправки данных в Response.Body возвращается EmptyResult
+        // Но в случае мока без реального стриминга может вернуться ObjectResult из-за ошибки
+        // Проверяем, что результат не null и Response.Body был использован
         Assert.NotNull(result);
+        
+        // Проверяем, что Content-Type установлен для streaming
+        var contentType = _controller.ControllerContext.HttpContext.Response.Headers.ContentType;
+        Assert.Equal("text/event-stream", contentType);
     }
 
     private static ILlmProvider CreateMockProvider(string name)

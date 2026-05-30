@@ -148,6 +148,17 @@ public class DatabaseApiKeyStoreTests
         _mockRedisDb.Setup(db => db.StringGetAsync("api_key:hash123", It.IsAny<CommandFlags>()))
             .ReturnsAsync(new RedisValue(cachedJson));
 
+        // Mock ApiKeys для проверки IsActive в БД - используем FirstOrDefaultAsync
+        var mockSet = new Mock<DbSet<ApiKey>>();
+        var data = new List<ApiKey> { key };
+        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.Provider).Returns(
+            new AsyncQueryableExecutor<ApiKey>(data));
+        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.Expression).Returns(data.AsQueryable().Expression);
+        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.ElementType).Returns(typeof(ApiKey));
+        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.GetEnumerator()).Returns(() => data.GetEnumerator());
+        
+        _mockDb.Setup(db => db.ApiKeys).Returns(mockSet.Object);
+
         var result = await _store.GetByKeyHashAsync("hash123");
 
         Assert.NotNull(result);
@@ -166,7 +177,7 @@ public class DatabaseApiKeyStoreTests
             new AsyncQueryableExecutor<ApiKey>(data));
         mockSet.As<IQueryable<ApiKey>>().Setup(m => m.Expression).Returns(data.AsQueryable().Expression);
         mockSet.As<IQueryable<ApiKey>>().Setup(m => m.ElementType).Returns(typeof(ApiKey));
-        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.GetEnumerator()).Returns(data.GetEnumerator());
+        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.GetEnumerator()).Returns(() => data.GetEnumerator());
         
         _mockDb.Setup(db => db.ApiKeys).Returns(mockSet.Object);
         _mockRedisDb.Setup(db => db.StringGetAsync("api_key:hash456", It.IsAny<CommandFlags>()))
@@ -192,7 +203,7 @@ public class DatabaseApiKeyStoreTests
             new AsyncQueryableExecutor<ApiKey>(data));
         mockSet.As<IQueryable<ApiKey>>().Setup(m => m.Expression).Returns(data.AsQueryable().Expression);
         mockSet.As<IQueryable<ApiKey>>().Setup(m => m.ElementType).Returns(typeof(ApiKey));
-        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.GetEnumerator()).Returns(data.GetEnumerator());
+        mockSet.As<IQueryable<ApiKey>>().Setup(m => m.GetEnumerator()).Returns(() => data.GetEnumerator());
         
         _mockDb.Setup(db => db.ApiKeys).Returns(mockSet.Object);
         _mockRedisDb.Setup(db => db.StringGetAsync("api_key:hash789", It.IsAny<CommandFlags>()))
@@ -229,6 +240,10 @@ public class DatabaseApiKeyStoreTests
 
         _mockDb.Setup(db => db.ApiKeys).Returns(mockSet.Object);
         _mockDb.Setup(db => db.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        // Настройка для успешного удаления кэша
+        _mockRedisDb.Setup(db => db.KeyDeleteAsync("api_key:torevoke", It.IsAny<CommandFlags>()))
+            .ReturnsAsync(true);
 
         var result = await _store.RevokeAsync(key.Id);
 

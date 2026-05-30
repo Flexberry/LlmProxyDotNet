@@ -6,8 +6,8 @@ namespace LlmProxy.Infrastructure.Providers.Vllm;
 
 public class VllmAdapter : OpenAI.OpenAIAdapter, ILlmProvider
 {
-    public new string ProviderName => "vllm";
-    public new string Prefix => "vllm/";
+    public override string ProviderName => "vllm";
+    public override string Prefix => "vllm/";
 
     public VllmAdapter(HttpClient httpClient, ProviderSettings settings, ILogger<VllmAdapter> logger) 
         : base(httpClient, settings, logger) { }

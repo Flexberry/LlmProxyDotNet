@@ -102,7 +102,9 @@ public class ChatController : ControllerBase
                 "error",
                 error: httpEx);
             
-            return StatusCode((int)httpEx.StatusCode, new { error = "Provider error", message = httpEx.Message });
+            // Safe fallback for nullable StatusCode
+            var statusCode = (int)(httpEx.StatusCode ?? HttpStatusCode.BadGateway);
+            return StatusCode(statusCode, new { error = "Provider error", message = httpEx.Message });
         }
         catch (Exception ex)
         {

@@ -55,11 +55,17 @@ describe('ApiKeysPage', () => {
       expect(revokeBtn).toBeInTheDocument();
     });
 
+    // Проверяем, что listApiKeys был вызван при монтировании
+    expect(api.listApiKeys).toHaveBeenCalled();
+    const initialCallCount = (api.listApiKeys as jest.Mock).mock.calls.length;
+
     const revokeBtn = screen.getByRole('button', { name: /отозвать|revoke|delete/i });
     await user.click(revokeBtn);
 
     expect(api.revokeApiKey).toHaveBeenCalledWith('key-123');
-    expect(api.listApiKeys).toHaveBeenCalled();
+    
+    // Проверяем, что listApiKeys был вызван ещё раз после revoke
+    expect((api.listApiKeys as jest.Mock).mock.calls.length).toBeGreaterThan(initialCallCount);
   });
 
   it('displays empty state when no keys', async () => {

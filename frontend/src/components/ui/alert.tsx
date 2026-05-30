@@ -23,7 +23,7 @@ Alert.displayName = 'Alert';
 
 export const AlertDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
-    <div
+    <p
       ref={ref}
       className={`text-sm [&_p]:leading-relaxed ${className}`}
       {...props}

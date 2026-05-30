@@ -103,9 +103,15 @@ export default function ApiKeysPage() {
   };
 
   const copyKey = async (key: string) => {
-    await navigator.clipboard.writeText(key);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback: показываем ошибку пользователю
+      alert('Не удалось скопировать в буфер обмена. Пожалуйста, скопируйте вручную.');
+    }
   };
 
   const getKeyToCopy = (key: ApiKey) => {

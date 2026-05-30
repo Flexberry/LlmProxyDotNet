@@ -56,11 +56,11 @@ public class SimpleRouterTests
     [Fact]
     public async Task ExecuteWithFallback_TriesNextProviderOnError()
     {
-        var callCount = 0;
+        var providerSequence = new List<string>();
         Task<string> Operation(ILlmProvider p, CancellationToken ct)
         {
-            callCount++;
-            if (callCount == 1) 
+            providerSequence.Add(p.ProviderName);
+            if (providerSequence.Count == 1) 
                 throw new HttpRequestException("Service Unavailable", null, HttpStatusCode.ServiceUnavailable);
             return Task.FromResult("success");
         }
@@ -68,6 +68,8 @@ public class SimpleRouterTests
         var result = await _router.ExecuteWithFallback(Operation, "test-model", _providers, maxRetries: 2);
 
         Assert.Equal("success", result);
-        Assert.Equal(2, callCount);
+        Assert.Equal(2, providerSequence.Count);
+        Assert.Equal("openai", providerSequence[0]);
+        Assert.Equal("ollama", providerSequence[1]);
     }
 }

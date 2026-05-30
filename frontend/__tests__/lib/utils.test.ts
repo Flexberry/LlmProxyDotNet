@@ -55,22 +55,33 @@ describe('Utils', () => {
 
   describe('formatDate', () => {
     it('formats ISO string', () => {
-      const result = formatDate('2024-03-15');
-      expect(result).toContain('2024');
-      expect(result).toContain('15');
+      const input = '2024-03-15';
+      const expected = new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(new Date(input));
+      expect(formatDate(input)).toBe(expected);
     });
 
     it('formats Date object', () => {
       const date = new Date('2024-06-20');
-      const result = formatDate(date);
-      expect(result).toContain('2024');
-      expect(result).toContain('20');
+      const expected = new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(date);
+      expect(formatDate(date)).toBe(expected);
     });
 
     it('uses ru-RU locale', () => {
       const result = formatDate('2024-01-01');
-      // В русской локали дата содержит точки или пробелы
-      expect(result).toMatch(/\d{1,2}\s/);
+      const expected = new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(new Date('2024-01-01'));
+      expect(result).toBe(expected);
     });
   });
 });

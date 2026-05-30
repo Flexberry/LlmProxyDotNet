@@ -78,12 +78,14 @@ describe('ModelsPage', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     (api.listModels as jest.Mock).mockRejectedValue(new Error('API Error'));
 
-    render(<ModelsPage />);
+    try {
+      render(<ModelsPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Доступные модели')).toBeInTheDocument();
-    });
-
-    consoleSpy.mockRestore();
+      await waitFor(() => {
+        expect(screen.getByText('Доступные модели')).toBeInTheDocument();
+      });
+    } finally {
+      consoleSpy.mockRestore();
+    }
   });
 });

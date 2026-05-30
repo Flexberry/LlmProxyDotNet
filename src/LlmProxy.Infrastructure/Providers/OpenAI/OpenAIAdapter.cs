@@ -11,8 +11,8 @@ namespace LlmProxy.Infrastructure.Providers.OpenAI;
 
 public class OpenAIAdapter : BaseHttpAdapter, ILlmProvider
 {
-    public string ProviderName => "openai";
-    public string Prefix => "openai/";
+    public virtual string ProviderName => "openai";
+    public virtual string Prefix => "openai/";
 
     public OpenAIAdapter(HttpClient httpClient, ProviderSettings settings, ILogger<OpenAIAdapter> logger) 
         : base(httpClient, settings, logger)
@@ -47,9 +47,9 @@ public class OpenAIAdapter : BaseHttpAdapter, ILlmProvider
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        string? line;
+        while (!ct.IsCancellationRequested && (line = await reader.ReadLineAsync(ct)) != null)
         {
-            var line = await reader.ReadLineAsync(ct);
             if (string.IsNullOrWhiteSpace(line)) continue;
             
             if (line.StartsWith("data: ", StringComparison.Ordinal))

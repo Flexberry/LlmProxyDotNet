@@ -8,8 +8,8 @@ namespace LlmProxy.Infrastructure.Providers.OpenRouter;
 
 public class OpenRouterAdapter : OpenAIAdapter, ILlmProvider
 {
-    public new string ProviderName => "openrouter";
-    public new string Prefix => "openrouter/";
+    public override string ProviderName => "openrouter";
+    public override string Prefix => "openrouter/";
 
     public OpenRouterAdapter(HttpClient httpClient, ProviderSettings settings, ILogger<OpenRouterAdapter> logger) 
         : base(httpClient, settings, logger)

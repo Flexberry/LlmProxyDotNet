@@ -18,10 +18,13 @@ export async function POST(request: NextRequest) {
       headers.set('X-Admin-Key', MASTER_KEY);
     }
     
+    // Зарезервированные заголовки, которые клиент не может переопределить
+    const reservedHeaders = new Set(['x-admin-key', 'x-master-key']);
+    
     // Пробрасываем пользовательские заголовки (например, Authorization)
     if (clientHeaders) {
       Object.entries(clientHeaders).forEach(([key, value]) => {
-        if (typeof value === 'string') {
+        if (typeof value === 'string' && !reservedHeaders.has(key.toLowerCase())) {
           headers.set(key, value);
         }
       });
@@ -58,9 +61,14 @@ export async function POST_STREAM(request: NextRequest) {
     headers.set('Content-Type', 'application/json');
     if (MASTER_KEY) headers.set('X-Admin-Key', MASTER_KEY);
     
+    // Зарезервированные заголовки, которые клиент не может переопределить
+    const reservedHeaders = new Set(['x-admin-key', 'x-master-key']);
+    
     if (clientHeaders) {
       Object.entries(clientHeaders).forEach(([key, value]) => {
-        if (typeof value === 'string') headers.set(key, value);
+        if (typeof value === 'string' && !reservedHeaders.has(key.toLowerCase())) {
+          headers.set(key, value);
+        }
       });
     }
 

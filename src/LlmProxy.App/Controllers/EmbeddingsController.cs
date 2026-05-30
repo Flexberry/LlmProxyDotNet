@@ -20,9 +20,10 @@ public class EmbeddingsController : ControllerBase
         // TODO: Реализация через Provider Adapter (этап 5-6)
         
         // Заглушка для этапа 4
-        var mockEmbedding = new List<float>(new float[1536]); // OpenAI-compatible dimension
-        for (int i = 0; i < mockEmbedding.Count; i++)
-            mockEmbedding[i] = (float)(new Random().NextDouble() * 2 - 1);
+        var mockEmbedding = new List<float>(1536); // OpenAI-compatible dimension
+        var rnd = new Random();
+        for (int i = 0; i < 1536; i++)
+            mockEmbedding.Add((float)(rnd.NextDouble() * 2 - 1));
 
         var response = new EmbeddingResponse
         {
