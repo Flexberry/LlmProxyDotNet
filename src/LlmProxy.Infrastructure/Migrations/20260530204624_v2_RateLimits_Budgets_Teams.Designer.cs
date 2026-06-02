@@ -3,6 +3,7 @@ using System;
 using LlmProxy.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LlmProxy.Infrastructure.Migrations
 {
     [DbContext(typeof(LlmProxyDbContext))]
-    partial class LlmProxyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530204624_v2_RateLimits_Budgets_Teams")]
+    partial class v2_RateLimits_Budgets_Teams
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -26,9 +29,6 @@ namespace LlmProxy.Infrastructure.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("BudgetId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -53,21 +53,10 @@ namespace LlmProxy.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<string>("RateLimitConfigJson")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid?>("TeamId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("BudgetId");
 
                     b.HasIndex("KeyHash")
                         .IsUnique();
-
-                    b.HasIndex("TeamId");
 
                     b.ToTable("ApiKeys");
                 });
@@ -266,22 +255,6 @@ namespace LlmProxy.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("TeamMembers");
-                });
-
-            modelBuilder.Entity("LlmProxy.Core.Entities.ApiKey", b =>
-                {
-                    b.HasOne("LlmProxy.Core.Entities.Budget", "Budget")
-                        .WithMany()
-                        .HasForeignKey("BudgetId");
-
-                    b.HasOne("LlmProxy.Core.Entities.Team", "Team")
-                        .WithMany()
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Budget");
-
-                    b.Navigation("Team");
                 });
 
             modelBuilder.Entity("LlmProxy.Core.Entities.Team", b =>

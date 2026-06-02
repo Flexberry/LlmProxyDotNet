@@ -10,6 +10,7 @@ using LlmProxy.Core.Models.Dto;
 using LlmProxy.Core.Providers;
 using LlmProxy.Core.Router;
 using LlmProxy.Infrastructure.Providers;
+using LlmProxy.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -22,19 +23,22 @@ public class ChatController : ControllerBase
     private readonly ILogger<ChatController> _logger;
     private readonly ILlmRouter _router;
     private readonly ProviderFactory _providerFactory;
-    private readonly ILoggingService _loggingService;  // <-- ДОБАВЛЕНО
+    private readonly ILoggingService _loggingService;
+    private readonly IRateLimitEnforcerService _enforcerService;  // ДОБАВЛЕНО
     private readonly JsonSerializerOptions _jsonOptions;
 
     public ChatController(
         ILogger<ChatController> logger,
         ILlmRouter router,
         ProviderFactory providerFactory,
-        ILoggingService loggingService)  // <-- ДОБАВЛЕНО В КОНСТРУКТОР
+        ILoggingService loggingService,
+        IRateLimitEnforcerService enforcerService)  // ДОБАВЛЕНО В КОНСТРУКТОР
     {
         _logger = logger;
         _router = router;
         _providerFactory = providerFactory;
-        _loggingService = loggingService;  // <-- ДОБАВЛЕНО
+        _loggingService = loggingService;
+        _enforcerService = enforcerService;  // ДОБАВЛЕНО
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -54,7 +58,28 @@ public class ChatController : ControllerBase
             return BadRequest(new { error = "Missing required field: messages" });
 
         var apiKeyHash = HttpContext.Items["ApiKeyHash"] as string ?? "unknown";
+        var apiKey = HttpContext.Items["ApiKey"] as ApiKey;  // Получаем полный объект ключа
         
+        // v2: Проверка rate limits и бюджета ПЕРЕД обработкой запроса
+        if (apiKey != null)
+        {
+            var enforcementResult = await _enforcerService.CheckAndEnforceAsync(
+                apiKey, request.Model, HttpContext.RequestAborted);
+
+            if (!enforcementResult.IsAllowed)
+            {
+                _logger.LogWarning(
+                    "Request blocked by enforcement: {Reason} for API key {ApiKeyHash}",
+                    enforcementResult.Reason, apiKeyHash);
+
+                return StatusCode(429, new 
+                { 
+                    error = enforcementResult.Reason,
+                    retryAfter = enforcementResult.RetryAfter?.TotalSeconds ?? 60
+                });
+            }
+        }
+
         try
         {
             var provider = await _router.SelectProviderAsync(
@@ -62,7 +87,7 @@ public class ChatController : ControllerBase
 
             if (request.Stream == true)
             {
-                return await StreamWithProvider(request, provider, apiKeyHash, stopwatch);
+                return await StreamWithProvider(request, provider, apiKey, apiKeyHash, stopwatch);
             }
             else
             {
@@ -74,6 +99,15 @@ public class ChatController : ControllerBase
                     ct: HttpContext.RequestAborted);
                 
                 stopwatch.Stop();
+                
+                // v2: Запись успешного запроса (инкремент счетчиков, обновление бюджета)
+                if (apiKey != null)
+                {
+                    var tokensUsed = response.Usage?.TotalTokens ?? 0;
+                    var cost = CalculateCost(provider.ProviderName, tokensUsed);
+                    await _enforcerService.RecordSuccessAsync(
+                        apiKey, request.Model, provider.ProviderName, tokensUsed, cost, HttpContext.RequestAborted);
+                }
                 
                 _ = _loggingService.LogRequestAsync(
                     apiKeyHash,
@@ -93,6 +127,13 @@ public class ChatController : ControllerBase
             stopwatch.Stop();
             _logger.LogWarning(httpEx, "HTTP error from provider");
             
+            // v2: Запись ошибки
+            if (apiKey != null)
+            {
+                await _enforcerService.RecordErrorAsync(
+                    apiKey, request.Model, httpEx, HttpContext.RequestAborted);
+            }
+            
             _ = _loggingService.LogRequestAsync(
                 apiKeyHash,
                 "unknown",
@@ -111,6 +152,13 @@ public class ChatController : ControllerBase
             stopwatch.Stop();
             _logger.LogError(ex, "Error processing chat completion");
             
+            // v2: Запись ошибки
+            if (apiKey != null)
+            {
+                await _enforcerService.RecordErrorAsync(
+                    apiKey, request.Model, ex, HttpContext.RequestAborted);
+            }
+            
             _ = _loggingService.LogRequestAsync(
                 apiKeyHash,
                 "unknown",
@@ -127,6 +175,7 @@ public class ChatController : ControllerBase
     private async Task<IActionResult> StreamWithProvider(
         ChatCompletionRequest request, 
         ILlmProvider provider, 
+        ApiKey? apiKey,
         string apiKeyHash,
         System.Diagnostics.Stopwatch stopwatch)
     {
@@ -140,6 +189,7 @@ public class ChatController : ControllerBase
                 return BadRequest(new { error = "Provider not found" });
             }
 
+            int totalTokens = 0;
             await foreach (var chunk in provider.CreateChatCompletionStreamAsync(request, HttpContext.RequestAborted))
             {
                 var json = JsonSerializer.Serialize(chunk, _jsonOptions);
@@ -148,12 +198,26 @@ public class ChatController : ControllerBase
                 
                 await Response.Body.WriteAsync(bytes, HttpContext.RequestAborted);
                 await Response.Body.FlushAsync(HttpContext.RequestAborted);
+
+                // Подсчет токенов из content
+                if (chunk.Choices?.FirstOrDefault()?.Delta?.Content != null)
+                {
+                    totalTokens += chunk.Choices.First().Delta.Content.Length / 4; // Приблизительный подсчет
+                }
             }
 
             var doneBytes = Encoding.UTF8.GetBytes("data: [DONE]\n\n");
             await Response.Body.WriteAsync(doneBytes, HttpContext.RequestAborted);
 
             stopwatch.Stop();
+
+            // v2: Запись успешного запроса для streaming
+            if (apiKey != null)
+            {
+                var cost = CalculateCost(provider.ProviderName, totalTokens);
+                await _enforcerService.RecordSuccessAsync(
+                    apiKey, request.Model, provider.ProviderName, totalTokens, cost, HttpContext.RequestAborted);
+            }
 
             _ = _loggingService.LogRequestAsync(
                 apiKeyHash,
@@ -169,6 +233,14 @@ public class ChatController : ControllerBase
         catch (Exception ex)
         {
             stopwatch.Stop();
+            
+            // v2: Запись ошибки для streaming
+            if (apiKey != null)
+            {
+                await _enforcerService.RecordErrorAsync(
+                    apiKey, request.Model, ex, HttpContext.RequestAborted);
+            }
+            
             _ = _loggingService.LogRequestAsync(
                 apiKeyHash,
                 provider?.ProviderName ?? "unknown",
@@ -180,5 +252,24 @@ public class ChatController : ControllerBase
                 isStreaming: true);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Приблизительный расчет стоимости запроса (в долларах)
+    /// </summary>
+    private static decimal CalculateCost(string providerName, int tokens)
+    {
+        // Примерные цены (могут быть настроены через конфигурацию)
+        var prices = new Dictionary<string, decimal>
+        {
+            { "openai", 0.000002m },  // $2 за 1M токенов
+            { "ollama", 0m },          // Бесплатно (локально)
+            { "vllm", 0m },            // Бесплатно (локально)
+            { "openrouter", 0.000001m },
+            { "zai", 0.0000015m }
+        };
+
+        var pricePerToken = prices.GetValueOrDefault(providerName.ToLower(), 0.000001m);
+        return tokens * pricePerToken;
     }
 }

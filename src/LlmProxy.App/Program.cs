@@ -13,12 +13,14 @@ using LlmProxy.Infrastructure.Providers.OpenRouter;
 using LlmProxy.Infrastructure.Providers.Vllm;
 using LlmProxy.Infrastructure.Providers.ZAi;
 using LlmProxy.Infrastructure.Router;
+using LlmProxy.Infrastructure.Services;
 using LlmProxy.App.Middleware;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.AspNetCore.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,20 +92,30 @@ void RegisterProvider<T>(string key) where T : class, ILlmProvider
 var llmConfig = builder.Configuration.GetSection("LlmConfig").Get<LlmConfig>() ?? new LlmConfig();
 logger.LogInformation($"Loaded providers from config: {string.Join(", ", llmConfig.Providers.Keys)}");
 
-foreach (var providerKey in llmConfig.Providers.Keys)
+// В тестовом окружении регистрируем MockProvider
+var envName = builder.Environment.EnvironmentName;
+if (envName == "Testing" || !llmConfig.Providers.Any())
 {
-    if (providerKey == "openai")
-        RegisterProvider<OpenAIAdapter>("openai");
-    else if (providerKey == "ollama")
-        RegisterProvider<OllamaAdapter>("ollama");
-    else if (providerKey == "vllm")
-        RegisterProvider<VllmAdapter>("vllm");
-    else if (providerKey == "openrouter")
-        RegisterProvider<OpenRouterAdapter>("openrouter");
-    else if (providerKey == "zai")
-        RegisterProvider<ZAiAdapter>("zai");
-    else
-        logger.LogWarning($"Unknown provider: {providerKey}");
+    logger.LogWarning("No providers configured or testing environment - registering MockProvider");
+    builder.Services.AddSingleton<ILlmProvider>(sp => new MockProvider(sp.GetRequiredService<ILogger<MockProvider>>()));
+}
+else
+{
+    foreach (var providerKey in llmConfig.Providers.Keys)
+    {
+        if (providerKey == "openai")
+            RegisterProvider<OpenAIAdapter>("openai");
+        else if (providerKey == "ollama")
+            RegisterProvider<OllamaAdapter>("ollama");
+        else if (providerKey == "vllm")
+            RegisterProvider<VllmAdapter>("vllm");
+        else if (providerKey == "openrouter")
+            RegisterProvider<OpenRouterAdapter>("openrouter");
+        else if (providerKey == "zai")
+            RegisterProvider<ZAiAdapter>("zai");
+        else
+            logger.LogWarning($"Unknown provider: {providerKey}");
+    }
 }
 
 // 5. Core Services
@@ -130,6 +142,19 @@ builder.Services.AddHostedService(sp =>
     )
 );
 
+// 6b. v2 Services - Rate Limiting, Budget, Teams, Cache, Webhooks
+builder.Services.AddScoped<IRateLimitService, RateLimitService>();
+builder.Services.AddScoped<IBudgetService, BudgetService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<IResponseCacheService, ResponseCacheService>();
+builder.Services.AddScoped<IRateLimitEnforcerService, RateLimitEnforcerService>();
+builder.Services.AddScoped<IWebhookService, WebhookService>(sp =>
+{
+    var httpClient = new HttpClient();
+    var logger = sp.GetRequiredService<ILogger<WebhookService>>();
+    return new WebhookService(httpClient, logger, sp);
+});
+
 // 7. MVC & JSON
 builder.Services.AddControllers().AddJsonOptions(opt =>
 {
@@ -152,11 +177,15 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Apply migrations
-using (var scope = app.Services.CreateScope())
+// Apply migrations (skip in test environment)
+var env = app.Services.GetRequiredService<IWebHostEnvironment>();
+if (!env.IsEnvironment("Testing"))
 {
-    var db = scope.ServiceProvider.GetRequiredService<LlmProxyDbContext>();
-    db.Database.Migrate();
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<LlmProxyDbContext>();
+        db.Database.Migrate();
+    }
 }
 
 app.UseRouting();

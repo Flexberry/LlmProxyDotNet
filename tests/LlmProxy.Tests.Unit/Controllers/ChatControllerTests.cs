@@ -24,6 +24,7 @@ public class ChatControllerTests
     private readonly Mock<ILlmRouter> _mockRouter;
     private readonly Mock<ProviderFactory> _mockFactory;
     private readonly Mock<Core.Logging.ILoggingService> _mockLoggingService;
+    private readonly Mock<Infrastructure.Services.IRateLimitEnforcerService> _mockEnforcerService;
     private readonly ChatController _controller;
 
     public ChatControllerTests()
@@ -32,12 +33,14 @@ public class ChatControllerTests
         _mockRouter = new Mock<ILlmRouter>();
         _mockFactory = new Mock<ProviderFactory>(MockBehavior.Loose, new List<ILlmProvider>());
         _mockLoggingService = new Mock<Core.Logging.ILoggingService>();
+        _mockEnforcerService = new Mock<Infrastructure.Services.IRateLimitEnforcerService>();
         
         _controller = new ChatController(
             _mockLogger.Object,
             _mockRouter.Object,
             _mockFactory.Object,
-            _mockLoggingService.Object
+            _mockLoggingService.Object,
+            _mockEnforcerService.Object
         );
         
         _controller.ControllerContext = new ControllerContext
