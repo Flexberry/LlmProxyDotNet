@@ -1,7 +1,8 @@
-/* frontend/src/app/globals.css */
 @import "tailwindcss";
 
-/* 1. Определение темы (Design Tokens) */
+/**
+ * 1. Определение темы (Design Tokens)
+ */
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -37,7 +38,9 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* 2. Базовые переменные (Light/Dark mode) */
+/**
+ * 2. Базовые переменные (Light/Dark mode)
+ */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -85,10 +88,12 @@
   }
 }
 
-/* 3. Глобальные стили */
+/**
+ * 3. Глобальные стили
+ */
 @layer base {
   * {
-    border-color: var(--color-border); /* Используем CSS variable напрямую */
+    border-color: var(--color-border);
   }
   
   body {
@@ -98,7 +103,9 @@
   }
 }
 
-/* 4. Утилиты */
+/**
+ * 4. Утилиты
+ */
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;

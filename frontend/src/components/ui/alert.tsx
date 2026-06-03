@@ -1,10 +1,16 @@
-// src/components/ui/alert.tsx
 import { HTMLAttributes, forwardRef } from 'react';
 
 interface AlertProps extends HTMLAttributes<HTMLDivElement> {
+  /** Alert visual variant */
   variant?: 'default' | 'destructive';
 }
 
+/**
+ * Alert component for displaying messages
+ * @param props - Alert properties
+ * @param props.className - Additional CSS classes
+ * @param props.variant - Visual variant (default: 'default')
+ */
 export const Alert = forwardRef<HTMLDivElement, AlertProps>(
   ({ className, variant = 'default', ...props }, ref) => (
     <div
@@ -21,6 +27,11 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(
 );
 Alert.displayName = 'Alert';
 
+/**
+ * Alert description component
+ * @param props - HTML paragraph attributes
+ * @param props.className - Additional CSS classes
+ */
 export const AlertDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
     <p

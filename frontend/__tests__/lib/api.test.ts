@@ -1,4 +1,3 @@
-// frontend/__tests__/lib/api.test.ts
 import { fetchBackend, listApiKeys, createApiKey, revokeApiKey, listModels, getStats, createChatCompletion } from '@/lib/api';
 
 global.fetch = jest.fn();
@@ -10,7 +9,7 @@ describe('API Client', () => {
   });
 
   describe('fetchBackend', () => {
-    it('adds X-Admin-Key header when MASTER_KEY is set', async () => {
+    it('makes request to backend URL', async () => {
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -68,7 +67,7 @@ describe('API Client', () => {
   });
 
   describe('listApiKeys', () => {
-    it('calls correct endpoint and returns typed data', async () => {
+    it('calls admin endpoint and returns typed data', async () => {
       const mockKeys = [{ id: '1', keyHash: 'abc', isActive: true, permissions: '*', createdAt: '2024-01-01' }];
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -77,7 +76,13 @@ describe('API Client', () => {
       });
 
       const result = await listApiKeys();
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/admin/keys'), expect.any(Object));
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/admin',
+        expect.objectContaining({
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
       expect(result).toEqual(mockKeys);
     });
   });
@@ -92,13 +97,20 @@ describe('API Client', () => {
       });
 
       const result = await createApiKey({ name: 'Test', permissions: ['*'] });
+      
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/admin/keys'),
+        '/api/admin',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ name: 'Test', permissions: ['*'] }),
+          headers: { 'Content-Type': 'application/json' },
         })
       );
+      
+      const call = (fetch as jest.Mock).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+      expect(body.endpoint).toBe('/admin/keys');
+      expect(body.body).toEqual({ name: 'Test', permissions: ['*'] });
+      
       expect(result).toEqual(mockResponse);
     });
 
@@ -115,24 +127,31 @@ describe('API Client', () => {
       
       const call = (fetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(call[1].body);
-      expect(body.expiresAt).toContain('2024-12-31');
+      expect(body.body.expiresAt).toContain('2024-12-31');
     });
   });
 
   describe('revokeApiKey', () => {
-    it('calls DELETE endpoint with correct key ID', async () => {
+    it('calls admin endpoint with correct key ID', async () => {
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        headers: { get: jest.fn() },
+        headers: { get: jest.fn((key) => key === 'content-length' ? '0' : null) },
+        json: async () => ({}),
       });
 
       await revokeApiKey('test-key-id');
 
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/admin/keys/test-key-id'),
-        expect.objectContaining({ method: 'DELETE' })
+        '/api/admin',
+        expect.objectContaining({
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        })
       );
+      
+      const call = (fetch as jest.Mock).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+      expect(body.endpoint).toBe('/admin/keys/test-key-id');
     });
   });
 

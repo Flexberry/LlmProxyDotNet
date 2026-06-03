@@ -1,10 +1,16 @@
-// src/components/ui/badge.tsx
 import { HTMLAttributes, forwardRef } from 'react';
 
 interface BadgeProps extends HTMLAttributes<HTMLDivElement> {
+  /** Badge visual variant */
   variant?: 'default' | 'secondary' | 'destructive' | 'outline';
 }
 
+/**
+ * Badge component for displaying status labels
+ * @param props - Badge properties
+ * @param props.className - Additional CSS classes
+ * @param props.variant - Visual variant (default: 'default')
+ */
 export const Badge = forwardRef<HTMLDivElement, BadgeProps>(
   ({ className, variant = 'default', ...props }, ref) => {
     const variants: Record<string, string> = {

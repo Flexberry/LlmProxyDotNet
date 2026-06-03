@@ -1,7 +1,6 @@
 import { http, HttpResponse, PathParams } from 'msw';
 
 export const handlers = [
-  // Admin endpoints
   http.get('/admin/keys', () => {
     return HttpResponse.json([
       {
@@ -16,7 +15,6 @@ export const handlers = [
   }),
 
   http.post('/admin/keys', async ({ request }) => {
-    // Явное приведение типа к Record<string, unknown> или конкретному интерфейсу
     const body = await request.json() as Record<string, unknown>;
     
     return HttpResponse.json({
@@ -36,7 +34,6 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
-  // Stats endpoint
   http.get('/admin/stats', () => {
     return HttpResponse.json({
       totalRequests: 150,
@@ -50,7 +47,6 @@ export const handlers = [
     });
   }),
 
-  // OpenAI-compatible endpoints
   http.post('/v1/chat/completions', async ({ request }) => {
     const body = await request.json() as { stream?: boolean };
     

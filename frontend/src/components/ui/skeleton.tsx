@@ -1,6 +1,10 @@
-// src/components/ui/skeleton.tsx
 import { cn } from '@/lib/utils';
 
+/**
+ * Skeleton loading placeholder component
+ * @param props - HTML div attributes
+ * @param props.className - Additional CSS classes
+ */
 function Skeleton({
   className,
   ...props

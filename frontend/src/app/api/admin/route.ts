@@ -1,6 +1,3 @@
-// frontend/src/app/api/admin/route.ts
-// Server-side API route для административных операций с Master Key
-
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';

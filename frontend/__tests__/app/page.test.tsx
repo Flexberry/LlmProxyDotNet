@@ -1,4 +1,3 @@
-// frontend/__tests__/app/page.test.tsx
 import { render, screen, waitFor } from '@testing-library/react';
 import DashboardPage from '@/app/page';
 import * as api from '@/lib/api';

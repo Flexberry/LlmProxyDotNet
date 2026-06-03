@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { Sidebar } from '@/components/layout/Sidebar';
 
-// Мокаем next/navigation
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
 }));

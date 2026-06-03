@@ -1,0 +1,452 @@
+# Проект: LLM Proxy на .NET 10 + Next.js 16 (Альтернатива LiteLLM)
+
+## Обзор
+
+Создание альтернативного LLM proxy-сервера на .NET 10 (backend) и Next.js 16 (frontend) с OpenAI-совместимым API. Проект исключает enterprise функции (чтобы не нарушать лицензию LiteLLM) и начнётся с поддержки 5 ключевых провайдеров: **Ollama, vLLM, OpenAI, OpenRouter, Z.ai**.
+
+**Особенности:**
+- Полная поддержка Docker Compose
+- Все конфигурации на русском языке
+- Минималистичный старт без enterprise модулей
+
+---
+
+## Phase 1: Requirements Analysis
+
+### Core Requirements
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| OpenAI-compatible API | Required | Full `/v1/chat/completions`, `/v1/embeddings` support |
+| 5 LLM Providers | Required | Ollama, vLLM, OpenAI, OpenRouter, Z.ai |
+| Authentication | Required | User API keys, JWT (optional), Master Key |
+| Model Routing | Required | Distribute requests across providers/models |
+| Streaming | Required | Server-Sent Events for chat/completions |
+| Logging | Required | Request/response logging with callbacks |
+
+### Что НЕ включено (начальная версия)
+
+| Функция | Причина |
+|---------|---------|
+| Enterprise RBAC | Комплексные команды/организации - отложить на v2 |
+| Управление бюджетами | Финансовый учёт - отложить на v2 |
+| MCP endpoints | Model Context Protocol - отложить |
+| Pass-through endpoints | Provider-specific - можно добавить позже |
+| UI Dashboard | Frontend - отдельная задача Next.js |
+
+---
+
+## Phase 2: Архитектура
+
+### Поток данных
+
+```
+Клиент (OpenAI SDK)
+    ↓
+API Layer .NET (Аутентификация + Валидация)
+    ↓
+Router (Выбор модели + Балансировка)
+    ↓
+Provider Adapter (Ollama/vLLM/OpenAI/OpenRouter/Z.ai)
+    ↓
+Внешний LLM провайдер
+```
+
+### Технологический стек
+
+| Слой | Технология | Примечания |
+|------|-----------|------------|
+| Backend | .NET 10 + ASP.NET Core | Альтернатива FastAPI на .NET |
+| Frontend | Next.js 16 (App Router) | React UI для управления ключами |
+| База данных | PostgreSQL | Как в LiteLLM для совместимости схемы |
+| ORM | Entity Framework Core | Эквивалент Prisma для .NET |
+| Кэш | Redis | Для кэширования API ключей |
+
+---
+
+## Phase 3: Подробный объём работ
+
+### 3.1 Backend (.NET) - Основные компоненты
+
+#### A. Точки входа
+
+| Файл | Назначение | Описание |
+|------|-----------|----------|
+| `Program.cs` | Запуск приложения | Установка middleware, аналог FastAPI |
+| `Controllers/ChatController.cs` | `/v1/chat/completions` | Основной endpoint для создания комментариев |
+| `Controllers/EmbeddingsController.cs` | `/v1/embeddings` | Генерация эмбеддингов |
+| `Controllers/ModelsController.cs` | `/v1/models` | Список доступных моделей |
+
+#### B. Адаптеры LLM провайдеров
+
+Каждый провайдер реализует интерфейс `ILlmProvider`:
+
+```csharp
+public interface ILlmProvider
+{
+    Task<ChatCompletionResponse> CreateChatCompletionAsync(ChatCompletionRequest request);
+    Task<StreamingResponse> CreateChatCompletionStreamAsync(ChatCompletionRequest request);
+    Task<EmbeddingResponse> CreateEmbeddingsAsync(EmbeddingRequest request);
+    string ProviderName { get; }
+}
+```
+
+**Файлы реализации провайдеров:**
+
+| Провайдер | Файл | Примечания |
+|-----------|------|------------|
+| Ollama | `Providers/Ollama/OllamaAdapter.cs` | Локальный HTTP API на `localhost:11434` |
+| vLLM | `Providers/Vllm/VllmAdapter.cs` | OpenAI-совместимый API |
+| OpenAI | `Providers/OpenAI/OpenAIAdapter.cs` | `api.openai.com` |
+| OpenRouter | `Providers/OpenRouter/OpenRouterAdapter.cs` | `openrouter.ai` |
+| Z.ai | `Providers/ZAi/ZAiAdapter.cs` | Z.ai API |
+
+#### C. Система маршрутизации
+
+| Файл | Назначение |
+|------|-----------|
+| `Router/ILlmRouter.cs` | Интерфейс для логики маршрутизации |
+| `Router/SimpleRouter.cs` | Маршрутизация simple-shuffle |
+| `Router/LeastBusyRouter.cs` | Выбор наименее загруженного провайдера |
+
+**Логика маршрутизации:**
+- Выбор провайдера по префиксу имени модели (например `ollama/`, `openai/`)
+- Round-robin или случайный выбор внутри группы провайдеров
+- Fallback логика (пробовать следующего провайдера при ошибке)
+
+#### D. Система аутентификации
+
+| Файл | Назначение |
+|------|-----------|
+| `Auth/IApiKeyStore.cs` | Интерфейс для хранения ключей |
+| `Auth/DatabaseApiKeyStore.cs` | Реализация для PostgreSQL |
+| `Auth/Middleware/ApiKeyAuth.cs` | HTTP middleware для валидации ключей |
+| `Auth/Models/ApiKey.cs` | Сущность API ключа |
+
+**Поля ключа:**
+```csharp
+public class ApiKey
+{
+    public string Key { get; set; }          // Хэшированный
+    public string? ModelPermissions { get; set; }  // JSON массив или "*"
+    public DateTime? ExpiresAt { get; set; }
+    public bool IsActive { get; set; }
+}
+```
+
+#### E. Конфигурация
+
+| Файл | Назначение |
+|------|-----------|
+| `Config/LlmConfig.cs` | Конфигурации провайдеров |
+| `Config/ProviderSettings.cs` | Настройки каждого провайдера |
+
+**Пример конфига (YAML/JSON):**
+```json
+{
+  "providers": {
+    "ollama": { "baseUrl": "http://localhost:11434" },
+    "vllm": { "baseUrl": "http://localhost:8000" },
+    "openai": { "apiKey": "${OPENAI_API_KEY}" },
+    "openrouter": { "apiKey": "${OPENROUTER_API_KEY}" },
+    "zai": { "apiKey": "${ZAI_API_KEY}" }
+  },
+  "defaultProvider": "openai"
+}
+```
+
+---
+
+### 3.2 Frontend (Next.js) - UI Компоненты
+
+#### A. Страницы
+
+| Маршрут | Назначение |
+|---------|-----------|
+| `/` | Dashboard со статистикой использования |
+| `/keys` | Управление API ключами (список/создание/удаление) |
+| `/models` | Просмотр доступных моделей |
+| `/settings` | Глобальные настройки |
+
+#### B. UI управления ключами
+
+- Список существующих API ключей с правами доступа
+- Создание нового ключа с ограничениями по моделям
+- Установка даты истечения
+- Удаление ключей
+- Копирование ключа в буфер обмена
+
+---
+
+## Phase 4: Задачи реализации
+
+### Backend задачи
+
+| Задача | Приоритет | Файлы |
+|--------|----------|-------|
+| Настройка структуры .NET проекта | High | `Program.cs`, `launchSettings.json` |
+| Схема БД (PostgreSQL) | High | Файлы миграции EF Core |
+| Аутентификация API ключами | High | `Auth/`, `Middleware/` |
+| Core endpoint создания комментариев | High | `Controllers/ChatController.cs` |
+| Адаптер OpenAI | High | `Providers/OpenAI/` |
+| Адаптер Ollama | High | `Providers/Ollama/` |
+| Адаптер vLLM | High | `Providers/Vllm/` |
+| Адаптер OpenRouter | Medium | `Providers/OpenRouter/` |
+| Адаптер Z.ai | Medium | `Providers/ZAi/` |
+| Реализация Router | Medium | `Router/` |
+| Поддержка streaming | Medium | `Services/StreamingService.cs` |
+| Логирование/Callbacks | Low | `Services/LoggingService.cs` |
+
+### Frontend задачи
+
+| Задача | Приоритет | Файлы |
+|--------|----------|-------|
+| Настройка Next.js проекта | High | `next.config.js`, `package.json` |
+| Слой интеграции API | High | `lib/api.ts` |
+| Страница управления ключами | High | `app/keys/page.tsx` |
+| Модальное окно создания ключа | High | `app/keys/components/KeyForm.tsx` |
+| Dashboard | Medium | `app/page.tsx` |
+| Страница настроек | Low | `app/settings/page.tsx` |
+
+---
+
+## Phase 5: Уточняющие вопросы
+
+### Открытые вопросы для принятия решений
+
+1. **База данных**: PostgreSQL (как в LiteLLM) - подтверждено ✅
+
+2. **Хранение аутентификации**: Как хранить API ключи:
+   - Одна таблица для всех ключей? ✅
+   - Отдельные таблицы по окружениям?
+   - Просто `ключ: права_моделей`?
+
+3. **Разрешение моделей**: Как сопоставлять имена моделей с провайдерами:
+   - По префиксу: `ollama/llama3`, `openai/gpt-4`, `vllm/mistral`?
+   - Файл конфигурации с маппингом?
+   - Admin UI для настройки маппингов?
+
+4. **Fallback логика**: При ошибке провайдера:
+   - Пробовать следующего провайдера из списка приоритетов?
+   - Сразу возвращать ошибку?
+   - Настраиваемо по модели?
+
+5. **Rate Limiting**: нужен ли?
+   - На ключ?
+   - На провайдера?
+   - Отложить на v2?
+
+6. **Auth для Frontend**: Требуется ли вход в UI:
+   - Простой master_key header для админа?
+   - JWT-based авторизация?
+   - Без auth (для локального использования)?
+
+---
+
+## Phase 6: Что НЕ реализуется (enterprise функции)
+
+Следующие функции LiteLLM НЕ будут реализованы (enterprise-only):
+
+| Функция | Ссылка в LiteLLM | Причина |
+|---------|------------------|---------|
+| Управление командами | `litellm/proxy/management_endpoints/team_endpoints.py` | Сложный RBAC |
+| Управление организациями | `litellm/proxy/management_endpoints/organization_endpoints.py` | Мультитенантная сложность |
+| Управление бюджетами | `litellm/proxy/budget_management_endpoints` | Финансовый учёт |
+| MCP endpoints | `litellm/proxy/pass_through_endpoints` | Model Context Protocol |
+| Guardrails | `litellm/proxy/guardrails/` | Фильтрация контента |
+| UI SSO | `litellm/proxy/management_endpoints/ui_sso.py` | Enterprise auth |
+| Pass-through Endpoints | `litellm/proxy/pass_through_endpoints/` | Provider-specific routing |
+| Fine-tuning Endpoints | `litellm/proxy/fine_tuning_endpoints/` | Сложный workflow |
+
+---
+
+## Phase 7: Стратегия тестирования
+
+### Unit тесты
+- Адаптеры провайдеров (mock HTTP responses)
+- Логика router (выбор модели)
+- Middleware аутентификации (валидация ключа)
+
+### Integration тесты
+- Полный поток запроса: Клиент → API → Провайдер
+- Обработка streaming ответов
+- Обработка ошибок (провайдер недоступен, неверный ключ)
+
+### Структура тестовых файлов
+```
+tests/
+├── unit/
+│   ├── Providers/
+│   ├── Router/
+│   └── Auth/
+├── integration/
+│   ├── ChatCompletionTests.cs
+│   └── StreamingTests.cs
+└── fixtures/
+    └── mock_responses.json
+```
+
+---
+
+## Phase 8: Развертывание и Docker
+
+### Переменные окружения
+```bash
+# Обязательные
+DATABASE_URL=postgresql://user:password@db:5432/litellm
+LITELLM_MASTER_KEY=sk_live_...
+
+# Опциональные
+OPENAI_API_KEY=sk-...
+OPENROUTER_API_KEY=sk-...
+ZAI_API_KEY=sk-...
+
+# Конфигурация
+DEFAULT_PROVIDER=openai
+PROVIDER__OLLAMA__BASE_URL=http://localhost:11434
+PROVIDER__VLLM__BASE_URL=http://localhost:8000
+```
+
+### Docker Compose (полная поддержка)
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: src/LlmProxy.App/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - DEFAULT_PROVIDER=${DEFAULT_PROVIDER:-openai}
+      - REDIS_CONNECTION=${REDIS_CONNECTION:-redis://redis:6379}
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    volumes:
+      - app_logs:/app/logs
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=litellm
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Ollama - локальный LLM
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  # vLLM - OpenAI-compatible
+  vllm:
+    image: vllm/vllm-openai:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL=${VLLM_MODEL:-mistralai/Mistral-7B-Instruct-v0.3}
+    volumes:
+      - vllm_data:/root/.cache/huggingface
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
+  vllm_data:
+  app_logs:
+```
+
+### Сборка и запуск
+```bash
+# Сборка
+docker-compose build
+
+# Запуск
+docker-compose up -d
+
+# Просмотр логов
+docker-compose logs -f app
+
+# Остановка
+docker-compose down
+```
+
+---
+
+## Phase 9: Критерии успеха
+
+### MVP Checklist
+
+- [ ] Backend на `.NET 10` работает на порту 4000
+- [ ] Endpoint `/v1/chat/completions` работает
+- [ ] Endpoint `/v1/models` возвращает список моделей
+- [ ] Адаптер OpenAI работает
+- [ ] Адаптер Ollama работает
+- [ ] Адаптер vLLM работает
+- [ ] Аутентификация API ключей работает
+- [ ] Router выбирает правильного провайдера
+- [ ] Streaming responses работает
+- [ ] Frontend Next.js запущен
+- [ ] UI управления ключами работает
+
+---
+
+## Phase 10: Будущие улучшения (v2+)
+
+| Функция | Описание |
+|---------|----------|
+| Rate Limiting | Ограничения на ключ и провайдер |
+| Управление бюджетами | Отслеживание и ограничение расходов |
+| Team/Org RBAC | Многопользовательский контроль доступа |
+| Интеграции логирования | Langfuse, OpenTelemetry, Prometheus |
+| Кэширование моделей | Кэш Redis для ответов |
+| Webhook события | Уведомления об успехе/ошибке |
+
+---
+
+## Ссылки на файлы LiteLLM (для справки)
+
+### Backend ссылки
+- `litellm/main.py` - Основная логика completion
+- `litellm/router.py` - Реализация router
+- `litellm/proxy/proxy_server.py` - Структура FastAPI сервера
+- `litellm/proxy/auth/user_api_key_auth.py` - Логика аутентификации
+
+### Provider ссылки
+- `litellm/llms/openai/` - Адаптер OpenAIs
+- `litellm/llms/ollama/` - Адаптер Ollama
+- `litellm/llms/vllm/` - Адаптер vLLM
+
+---
+
+## Примечания
+
+1. **Соответствие лицензии**: Этот проект исключает все enterprise функции, чтобы избежать ограничений лицензии LiteLLM Enterprise.
+
+2. **Совместимость с OpenAI SDK**: API должен быть совместим с официальным OpenAI .NET SDK без модификаций.
+
+3. **Постепенное улучшение**: Начать с минимума (chat/completions + 3 провайдера), добавлять функции итеративно.
+
+4. **Сначала тесты**: Где возможно, писать тесты до реализации (подход TDD).

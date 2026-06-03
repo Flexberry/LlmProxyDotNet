@@ -1,4 +1,3 @@
-// src/components/ui/dialog.tsx
 'use client';
 
 import * as React from 'react';
@@ -10,6 +9,13 @@ const DialogContext = React.createContext<{
   setOpen: (open: boolean) => void;
 }>({ open: false, setOpen: () => {} });
 
+/**
+ * Dialog root component that manages open state
+ * @param props - Dialog properties
+ * @param props.children - Dialog content
+ * @param props.open - Open state
+ * @param props.onOpenChange - Callback when open state changes
+ */
 export const Dialog = ({
   children,
   open,
@@ -26,6 +32,12 @@ export const Dialog = ({
   );
 };
 
+/**
+ * Dialog trigger button component
+ * @param props - Trigger properties
+ * @param props.children - Trigger content
+ * @param props.asChild - Whether to clone child element (default: false)
+ */
 export const DialogTrigger = ({
   children,
   asChild = false,
@@ -42,6 +54,12 @@ export const DialogTrigger = ({
   return <div onClick={() => setOpen(true)}>{children}</div>;
 };
 
+/**
+ * Dialog content container
+ * @param props - Content properties
+ * @param props.children - Dialog content
+ * @param props.className - Additional CSS classes
+ */
 export const DialogContent = ({
   children,
   className,
@@ -74,6 +92,11 @@ export const DialogContent = ({
   );
 };
 
+/**
+ * Dialog header container
+ * @param props - HTML div attributes
+ * @param props.className - Additional CSS classes
+ */
 export const DialogHeader = ({
   className,
   ...props
@@ -85,6 +108,11 @@ export const DialogHeader = ({
 );
 DialogHeader.displayName = 'DialogHeader';
 
+/**
+ * Dialog title component
+ * @param props - HTML heading attributes
+ * @param props.className - Additional CSS classes
+ */
 export const DialogTitle = ({
   className,
   ...props

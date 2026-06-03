@@ -1,4 +1,3 @@
-// frontend/__tests__/app/keys/page.test.tsx
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ApiKeysPage from '@/app/keys/page';

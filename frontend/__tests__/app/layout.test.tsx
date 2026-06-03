@@ -1,12 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import RootLayout from '@/app/layout';
 
-// Мокаем next/font
 jest.mock('next/font/google', () => ({
   Inter: () => ({ className: 'inter-mock' }),
 }));
 
-// Мокаем дочерние компоненты
 jest.mock('@/components/layout/Sidebar', () => ({
   Sidebar: () => <aside data-testid="sidebar">Sidebar</aside>,
 }));

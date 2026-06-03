@@ -21,7 +21,6 @@ export default function ApiKeysPage() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Загрузка сохраненных ключей из localStorage
   const getStoredKeys = (): Record<string, string> => {
     if (typeof window === 'undefined') return {};
     try {
@@ -32,7 +31,6 @@ export default function ApiKeysPage() {
     }
   };
 
-  // Сохранение ключа в localStorage
   const storeKey = (id: string, key: string) => {
     if (typeof window === 'undefined') return;
     try {
@@ -49,7 +47,6 @@ export default function ApiKeysPage() {
       const data = await listApiKeys();
       const storedKeys = getStoredKeys();
       
-      // Добавляем оригинальные ключи из localStorage
       const keysWithPlain = data.map(key => ({
         ...key,
         key: storedKeys[key.id] || undefined
@@ -76,9 +73,6 @@ export default function ApiKeysPage() {
       expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : undefined,
     });
     
-    // Сохраняем оригинальный ключ в localStorage
-    storeKey(response.apiKey.id, response.key);
-    
     setNewKey(response.key);
     setOpen(false);
     await loadKeys();
@@ -87,7 +81,6 @@ export default function ApiKeysPage() {
   const handleRevoke = async (keyId: string) => {
     if (!confirm('Отозвать этот ключ? Это действие нельзя отменить.')) return;
     
-    // Удаляем из localStorage
     if (typeof window !== 'undefined') {
       try {
         const stored = getStoredKeys();
@@ -109,14 +102,11 @@ export default function ApiKeysPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
-      // Fallback: показываем ошибку пользователю
       alert('Не удалось скопировать в буфер обмена. Пожалуйста, скопируйте вручную.');
     }
   };
 
   const getKeyToCopy = (key: ApiKey) => {
-    // Если есть оригинальный ключ (только что создан) - используем его
-    // Иначе - показываем предупреждение, что ключ недоступен
     return key.key || key.keyHash;
   };
 
@@ -130,7 +120,6 @@ export default function ApiKeysPage() {
           </p>
         </div>
         
-        {/* Исправлено: onOpenChange передается в Dialog */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>

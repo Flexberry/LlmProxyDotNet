@@ -10,17 +10,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 
+/**
+ * Form schema for API key creation
+ */
 const formSchema = z.object({
   name: z.string().optional(),
   permissions: z.array(z.string()).optional(),
   expiresAt: z.string().optional(),
 }).refine(data => !data.permissions || data.permissions.length === 0 || data.permissions.length > 0, {
-  message: 'Выберите хотя бы одну модель или оставьте пустым для всех',
+  message: 'Select at least one model or leave empty for all',
   path: ['permissions'],
 });
 
+/**
+ * Available models for selection
+ */
 const MODELS = [
-  { value: '*', label: 'Все модели (*)' },
+  { value: '*', label: 'All models (*)' },
   { value: 'ollama/llama3', label: 'Ollama: Llama 3' },
   { value: 'ollama/mistral', label: 'Ollama: Mistral' },
   { value: 'openai/gpt-4o', label: 'OpenAI: GPT-4o' },
@@ -30,6 +36,12 @@ const MODELS = [
   { value: 'zai/z-ai-chat', label: 'Z.ai: Chat' },
 ];
 
+/**
+ * API key creation form component
+ * @param props - Component properties
+ * @param props.onSubmit - Callback when form is submitted
+ * @param props.onCancel - Callback when form is cancelled
+ */
 export function KeyForm({ onSubmit, onCancel }: { onSubmit: (d: z.infer<typeof formSchema>) => Promise<void>; onCancel: () => void }) {
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<typeof formSchema>>({

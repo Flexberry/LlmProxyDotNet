@@ -93,7 +93,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Топ моделей */}
       {stats?.requestsByModel && Object.keys(stats.requestsByModel).length > 0 && (
         <Card>
           <CardHeader>
@@ -117,7 +116,6 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Топ провайдеров */}
       {stats?.requestsByProvider && Object.keys(stats.requestsByProvider).length > 0 && (
         <Card>
           <CardHeader>

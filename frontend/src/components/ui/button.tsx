@@ -2,10 +2,20 @@ import { ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Button visual variant */
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  /** Button size variant */
   size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
+/**
+ * Button component with multiple variants and sizes
+ * @param props - Button properties
+ * @param props.className - Additional CSS classes
+ * @param props.variant - Visual variant (default: 'default')
+ * @param props.size - Size variant (default: 'default')
+ * @param props.ref - Forwarded ref to button element
+ */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'default', size = 'default', ...props }, ref) => {
     const base = 'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';

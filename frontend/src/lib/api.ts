@@ -1,5 +1,4 @@
-// frontend/src/lib/api.ts
-import { 
+import type { 
   ApiKey, 
   CreateApiKeyRequest, 
   CreateApiKeyResponse, 
@@ -10,55 +9,64 @@ import {
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
-// Убираем MASTER_KEY из клиентского кода - теперь используется server-side API route
-
+/**
+ * Makes an HTTP request to the backend API
+ * @template T - Expected response type
+ * @param endpoint - API endpoint path
+ * @param options - Fetch options
+ * @returns Promise resolving to the response data
+ * @throws Error on HTTP errors
+ */
 export async function fetchBackend<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
   const headers = new Headers(options.headers);
   
-  // Убираем client-side добавление X-Admin-Key
-  // Административные запросы должны идти через server-side API route
-  
   if (!headers.has('Content-Type') && options.body) {
-     headers.set('Content-Type', 'application/json');
+    headers.set('Content-Type', 'application/json');
   } else if (!headers.has('Content-Type') && options.method !== 'GET') {
-     headers.set('Content-Type', 'application/json');
+    headers.set('Content-Type', 'application/json');
   }
 
   try {
-      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-        ...options,
-        headers,
-      });
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
-      }
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
 
-      // ИСПРАВЛЕНИЕ: Безопасная проверка headers
-      const contentLength = response.headers?.get("content-length");
-      if (response.status === 204 || contentLength === "0") {
-          return {} as T;
-      }
+    const contentLength = response.headers?.get('content-length');
+    if (response.status === 204 || contentLength === '0') {
+      return {} as T;
+    }
 
-      return response.json();
+    return response.json();
   } catch (error) {
-      console.error(`API Error [${endpoint}]:`, error);
-      throw error;
+    console.error(`API Error [${endpoint}]:`, error);
+    throw error;
   }
 }
 
-// Серверные API функции для административных операций
+/**
+ * Makes an administrative request via server-side API route
+ * @template T - Expected response type
+ * @param endpoint - Administrative endpoint path
+ * @param method - HTTP method (GET, POST, DELETE)
+ * @param body - Request body
+ * @returns Promise resolving to the response data
+ */
 export async function fetchAdmin<T>(
-  endpoint: string, 
+  endpoint: string,
   method: 'GET' | 'POST' | 'DELETE' = 'GET',
-  body?: any
+  body?: unknown
 ): Promise<T> {
   try {
-    const response = await fetch(`/api/admin`, {
+    const response = await fetch('/api/admin', {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ endpoint, body }),
@@ -76,30 +84,50 @@ export async function fetchAdmin<T>(
   }
 }
 
+/**
+ * Retrieves all API keys
+ * @returns Promise resolving to array of API keys
+ */
 export async function listApiKeys(): Promise<ApiKey[]> {
-  // Используем server-side API route для админ-операций
   return fetchAdmin<ApiKey[]>('/admin/keys', 'GET');
 }
 
+/**
+ * Creates a new API key
+ * @param data - Data for key creation
+ * @returns Promise resolving to the created key with plaintext
+ */
 export async function createApiKey(data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
-  // Преобразуем expiresAt в ISO формат с timezone, если он указан
   const payload = {
     ...data,
     expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : undefined,
   };
-  // Используем server-side API route для админ-операций
   return fetchAdmin<CreateApiKeyResponse>('/admin/keys', 'POST', payload);
 }
 
+/**
+ * Revokes an API key by ID
+ * @param keyId - Unique key identifier
+ * @returns Promise resolving when key is revoked
+ */
 export async function revokeApiKey(keyId: string): Promise<void> {
-  // Используем server-side API route для админ-операций
   return fetchAdmin<void>(`/admin/keys/${keyId}`, 'DELETE');
 }
 
+/**
+ * Retrieves list of available models
+ * @returns Promise resolving to models list response
+ */
 export async function listModels(): Promise<ModelsListResponse> {
   return fetchBackend<ModelsListResponse>('/v1/models');
 }
 
+/**
+ * Retrieves usage statistics for a period
+ * @param from - Start date of the period
+ * @param to - End date of the period
+ * @returns Promise resolving to statistics
+ */
 export async function getStats(from: Date, to: Date): Promise<LogStats> {
   const params = new URLSearchParams({
     from: from.toISOString(),
@@ -108,20 +136,36 @@ export async function getStats(from: Date, to: Date): Promise<LogStats> {
   return fetchBackend<LogStats>(`/admin/stats?${params}`);
 }
 
+/**
+ * Creates a chat completion through LLM provider
+ * @param request - Chat completion request
+ * @param userApiKey - User's API key
+ * @param onChunk - Callback for each stream chunk
+ * @returns Promise resolving to response or void for streaming
+ */
 export async function createChatCompletion(
   request: ChatCompletionRequest,
   userApiKey: string,
-  onChunk?: (chunk: any) => void
-): Promise<any> {
-  if (request.stream && onChunk) {
-    return streamChatCompletion(request, userApiKey, onChunk);
+  onChunk?: (chunk: unknown) => void
+): Promise<unknown> {
+  if (request.stream) {
+    if (onChunk) {
+      return streamChatCompletion(request, userApiKey, onChunk);
+    } else {
+      // If stream=true without onChunk, use server-side handler
+      return fetchAdmin<unknown>('/proxy/chat', 'POST', {
+        path: '/v1/chat/completions',
+        body: { ...request, stream: true },
+        headers: { Authorization: `Bearer ${userApiKey}` },
+      });
+    }
   }
 
   const response = await fetch(`${BACKEND_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${userApiKey}`,
+      Authorization: `Bearer ${userApiKey}`,
     },
     body: JSON.stringify(request),
   });
@@ -134,16 +178,23 @@ export async function createChatCompletion(
   return response.json();
 }
 
+/**
+ * Creates a streaming chat completion
+ * @param request - Chat completion request
+ * @param userApiKey - User's API key
+ * @param onChunk - Callback for each stream chunk
+ * @returns Promise resolving when streaming is complete
+ */
 async function streamChatCompletion(
   request: ChatCompletionRequest,
   userApiKey: string,
-  onChunk: (chunk: any) => void
+  onChunk: (chunk: unknown) => void
 ): Promise<void> {
   const response = await fetch(`${BACKEND_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${userApiKey}`,
+      Authorization: `Bearer ${userApiKey}`,
     },
     body: JSON.stringify({ ...request, stream: true }),
   });

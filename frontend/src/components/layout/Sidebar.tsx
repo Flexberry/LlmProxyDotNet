@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Key, Blocks, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Navigation menu items configuration
+ */
 const navigation = [
   { name: 'Дашборд', href: '/', icon: LayoutDashboard },
   { name: 'API Ключи', href: '/keys', icon: Key },
@@ -12,6 +15,10 @@ const navigation = [
   { name: 'Настройки', href: '/settings', icon: Settings },
 ];
 
+/**
+ * Sidebar navigation component
+ * @returns Sidebar JSX element
+ */
 export function Sidebar() {
   const pathname = usePathname();
 
