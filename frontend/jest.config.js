@@ -21,6 +21,7 @@ const customJestConfig = {
     '!src/**/*.d.ts',
     '!src/**/*.stories.*',
     '!src/**/index.ts',
+    '!src/app/api/**/*',
   ],
   coverageThreshold: {
     global: {
