@@ -21,6 +21,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV BACKEND_URL=http://app:4000
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs

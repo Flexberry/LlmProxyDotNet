@@ -58,18 +58,53 @@ export async function fetchAdmin<T>(
   body?: any
 ): Promise<T> {
   try {
-    const response = await fetch(`/api/admin`, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint, body }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `HTTP ${response.status}`);
+    const headers: HeadersInit = { 
+      'Content-Type': 'application/json',
+    };
+    
+    // Добавляем ADMIN_SECRET для авторизации
+    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET || process.env.ADMIN_SECRET;
+    if (adminSecret) {
+      headers['Authorization'] = `Bearer ${adminSecret}`;
     }
 
-    return response.json();
+    // Для GET и DELETE используем query params, для POST — JSON body
+    if (method === 'GET' || method === 'DELETE') {
+      const params = new URLSearchParams({ endpoint });
+      const response = await fetch(`/api/admin?${params}`, {
+        method,
+        headers,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+
+      // DELETE может возвращать пустой ответ (204)
+      if (method === 'DELETE') {
+        const contentLength = response.headers?.get("content-length");
+        if (response.status === 204 || contentLength === "0") {
+          return {} as T;
+        }
+      }
+
+      return response.json();
+    } else {
+      // POST с JSON body
+      const response = await fetch(`/api/admin`, {
+        method,
+        headers,
+        body: JSON.stringify({ endpoint, body }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+
+      return response.json();
+    }
   } catch (error) {
     console.error(`Admin API Error [${endpoint}]:`, error);
     throw error;

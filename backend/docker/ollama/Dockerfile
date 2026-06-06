@@ -2,8 +2,8 @@
 FROM ollama/ollama:latest
 
 # Копируем скрипт инициализации
-COPY init-models.sh /usr/local/bin/init-models.sh
-RUN chmod +x /usr/local/bin/init-models.sh
+COPY init-models.sh /init-models.sh
+RUN chmod +x /init-models.sh
 
 # Переменная окружения для настройки моделей
 ENV OLLAMA_MODELS="llama3.2:latest mistral:latest"
@@ -14,4 +14,4 @@ VOLUME /root/.ollama
 EXPOSE 11434
 
 # Используем наш скрипт как точку входа
-ENTRYPOINT ["/usr/local/bin/init-models.sh"]
+ENTRYPOINT ["/init-models.sh"]

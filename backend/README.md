@@ -35,6 +35,9 @@ LLM Proxy — это минималистичный proxy-сервер для р
 DATABASE_URL=Host=postgres;Port=5432;Database=litellm;Username=user;Password=password
 LITELLM_MASTER_KEY=sk_master_dev_001
 
+# Административный секрет для frontend API routes
+ADMIN_SECRET=admin_secret_dev_001
+
 # API ключи провайдеров (заполните для облачных провайдеров)
 OPENAI_API_KEY=sk-your-openai-key
 OPENROUTER_API_KEY=sk-your-openrouter-key
@@ -47,7 +50,12 @@ VLLM_MODEL=mistralai/Mistral-7B-Instruct-v0.3
 
 ### 3. Запуск всех сервисов
 
+**Рабочая директория:** `backend/`
+
 ```bash
+# Перейдите в директорию backend
+cd backend
+
 # Сборка и запуск
 docker-compose up -d --build
 
@@ -203,15 +211,17 @@ docker run -d --name frontend \
 
 ### Вариант 3: Локальный запуск (без Docker)
 
+**Рабочая директория:** корень репозитория
+
 ```bash
-# Backend
-cd src/LlmProxy.App
+# Backend (из корня репозитория)
+cd backend/src/LlmProxy.App
 dotnet restore
 dotnet ef database update
 dotnet run --urls="http://0.0.0.0:4000"
 
-# Frontend (отдельное окно, из корня проекта)
-cd ../frontend
+# Frontend (отдельное окно, из корня репозитория)
+cd frontend
 npm install
 npm run dev
 ```
@@ -258,17 +268,22 @@ Provider Adapter (Ollama/vLLM/OpenAI/OpenRouter/Z.ai)
 
 ## Тестирование
 
+**Рабочая директория:** `backend/`
+
 ```bash
+# Перейдите в директорию backend
+cd backend
+
 # Unit тесты
 cd tests/LlmProxy.Tests.Unit
 dotnet test
 
 # Интеграционные тесты (требуется Docker)
-cd tests/LlmProxy.Tests.Integration
+cd ../LlmProxy.Tests.Integration
 dotnet test
 
-# Frontend тесты (из корня проекта)
-cd ../frontend
+# Frontend тесты (из корня репозитория)
+cd ../../frontend
 npm test
 ```
 
