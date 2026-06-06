@@ -32,7 +32,13 @@ const ALLOWED_ENDPOINTS = [
 ];
 
 function isEndpointAllowed(endpoint: string): boolean {
-  return ALLOWED_ENDPOINTS.some(allowed => endpoint.startsWith(allowed));
+  return ALLOWED_ENDPOINTS.some(allowed => {
+    // Точное совпадение или совпадение с границами пути (/ или ?)
+    if (endpoint === allowed) return true;
+    if (endpoint.startsWith(allowed + '/')) return true;
+    if (endpoint.startsWith(allowed + '?')) return true;
+    return false;
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -173,7 +179,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(error, { status: response.status });
     }
 
-    const data = await response.json();
+    // Обработка 204 No Content или пустого тела
+    if (response.status === 204) {
+      return NextResponse.json({ success: true });
+    }
+
+    // Попытка парсинга JSON с фолбэком на успех при пустом теле
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      // Пустое тело или неверный JSON — считаем успехом
+      data = { success: true };
+    }
+    
     return NextResponse.json(data ?? { success: true });
   } catch (error) {
     console.error('Admin API DELETE error:', error);
