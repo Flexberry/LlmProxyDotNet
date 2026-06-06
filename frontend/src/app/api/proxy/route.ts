@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Зарезервированные заголовки, которые клиент не может переопределить
-    const reservedHeaders = new Set(['x-admin-key', 'x-master-key']);
+    const reservedHeaders = new Set(['x-admin-key', 'x-master-key', 'authorization']);
     
     // Пробрасываем пользовательские заголовки (например, Authorization)
     if (clientHeaders) {
@@ -62,7 +62,7 @@ export async function POST_STREAM(request: NextRequest) {
     if (MASTER_KEY) headers.set('X-Admin-Key', MASTER_KEY);
     
     // Зарезервированные заголовки, которые клиент не может переопределить
-    const reservedHeaders = new Set(['x-admin-key', 'x-master-key']);
+    const reservedHeaders = new Set(['x-admin-key', 'x-master-key', 'authorization']);
     
     if (clientHeaders) {
       Object.entries(clientHeaders).forEach(([key, value]) => {

@@ -1,4 +1,3 @@
-// src/components/ui/badge.tsx
 import { HTMLAttributes, forwardRef } from 'react';
 
 interface BadgeProps extends HTMLAttributes<HTMLDivElement> {

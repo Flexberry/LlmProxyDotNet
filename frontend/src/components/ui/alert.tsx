@@ -1,4 +1,3 @@
-// src/components/ui/alert.tsx
 import { HTMLAttributes, forwardRef } from 'react';
 
 interface AlertProps extends HTMLAttributes<HTMLDivElement> {
