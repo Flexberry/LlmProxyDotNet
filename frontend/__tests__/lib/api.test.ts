@@ -7,6 +7,7 @@ describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NEXT_PUBLIC_LITELLM_MASTER_KEY = 'sk_master_test';
+    process.env.NEXT_PUBLIC_ADMIN_SECRET = 'admin_secret';
   });
 
   describe('fetchBackend', () => {
@@ -77,7 +78,15 @@ describe('API Client', () => {
       });
 
       const result = await listApiKeys();
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/admin/keys'), expect.any(Object));
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin'),
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+          }),
+        })
+      );
       expect(result).toEqual(mockKeys);
     });
   });
@@ -93,10 +102,13 @@ describe('API Client', () => {
 
       const result = await createApiKey({ name: 'Test', permissions: ['*'] });
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/admin/keys'),
+        '/api/admin',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ name: 'Test', permissions: ['*'] }),
+          body: JSON.stringify({ 
+            endpoint: '/admin/keys', 
+            body: { name: 'Test', permissions: ['*'] } 
+          }),
         })
       );
       expect(result).toEqual(mockResponse);
@@ -115,7 +127,7 @@ describe('API Client', () => {
       
       const call = (fetch as jest.Mock).mock.calls[0];
       const body = JSON.parse(call[1].body);
-      expect(body.expiresAt).toContain('2024-12-31');
+      expect(body.body.expiresAt).toContain('2024-12-31');
     });
   });
 
@@ -130,8 +142,13 @@ describe('API Client', () => {
       await revokeApiKey('test-key-id');
 
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/admin/keys/test-key-id'),
-        expect.objectContaining({ method: 'DELETE' })
+        expect.stringContaining('/api/admin'),
+        expect.objectContaining({ 
+          method: 'DELETE',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+          }),
+        })
       );
     });
   });

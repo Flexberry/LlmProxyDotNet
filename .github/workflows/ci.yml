@@ -36,9 +36,11 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore dependencies
-        run: dotnet restore
+        working-directory: backend
+        run: dotnet restore LlmProxy.slnx
 
       - name: Run Unit Tests
+        working-directory: backend
         run: dotnet test tests/LlmProxy.Tests.Unit/LlmProxy.Tests.Unit.csproj --verbosity normal
 
   # ─── Frontend: сборка + тесты ───
@@ -118,9 +120,11 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore dependencies
-        run: dotnet restore
+        working-directory: backend
+        run: dotnet restore LlmProxy.slnx
 
       - name: Run Integration Tests
+        working-directory: backend
         env:
           DATABASE_URL: Host=localhost;Port=5432;Database=litellm;Username=user;Password=password
           REDIS_CONNECTION: localhost:6379
@@ -131,18 +135,22 @@ jobs:
   docker-compose:
     name: Docker Compose Check
     runs-on: ubuntu-latest
+    needs: [backend, frontend]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Create .env file
+        working-directory: backend
         run: |
-          echo "LITELLM_MASTER_KEY=sk_test_ci_key" >> .env
+          echo "LITELLM_MASTER_KEY=sk_test_ci_key" > .env
           echo "DATABASE_URL=Host=postgres;Port=5432;Database=litellm;Username=user;Password=password" >> .env
 
       - name: Validate Docker Compose
+        working-directory: backend
         run: docker compose config
 
       - name: Build Docker images
+        working-directory: backend
         run: docker compose build
