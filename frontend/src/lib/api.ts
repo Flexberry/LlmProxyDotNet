@@ -52,22 +52,18 @@ export async function fetchBackend<T>(
 }
 
 // Серверные API функции для административных операций
+// Эти функции вызывают server-side API route (/api/admin), который сам добавляет ADMIN_SECRET
 export async function fetchAdmin<T>(
   endpoint: string, 
   method: 'GET' | 'POST' | 'DELETE' = 'GET',
   body?: any
 ): Promise<T> {
   try {
+    // Для клиентского кода не добавляем Authorization header — это делает server-side API route
     const headers: HeadersInit = { 
       'Content-Type': 'application/json',
     };
     
-    // Добавляем ADMIN_SECRET для авторизации
-    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET || process.env.ADMIN_SECRET;
-    if (adminSecret) {
-      headers['Authorization'] = `Bearer ${adminSecret}`;
-    }
-
     // Для GET и DELETE используем query params, для POST — JSON body
     if (method === 'GET' || method === 'DELETE') {
       const params = new URLSearchParams({ endpoint });
@@ -148,7 +144,10 @@ export async function createChatCompletion(
   userApiKey: string,
   onChunk?: (chunk: any) => void
 ): Promise<any> {
-  if (request.stream && onChunk) {
+  if (request.stream) {
+    if (!onChunk) {
+      throw new Error('stream:true requires onChunk callback');
+    }
     return streamChatCompletion(request, userApiKey, onChunk);
   }
 
