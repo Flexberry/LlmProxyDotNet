@@ -4,7 +4,17 @@ import type {
   CreateApiKeyResponse, 
   ModelsListResponse,
   LogStats,
-  ChatCompletionRequest
+  ChatCompletionRequest,
+  RateLimitStatus,
+  Budget,
+  BudgetCheckResult,
+  SetBudgetRequest,
+  UpdateSpendingRequest,
+  Team,
+  TeamMember,
+  TeamRole,
+  CreateTeamRequest,
+  AddTeamMemberRequest
 } from './types';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
@@ -57,7 +67,7 @@ export async function fetchBackend<T>(
  * @template T - Expected response type
  * @param endpoint - Administrative endpoint path
  * @param method - HTTP method (GET, POST, DELETE)
- * @param body - Request body
+ * @param body - Request body (not used for GET/DELETE requests)
  * @returns Promise resolving to the response data
  */
 export async function fetchAdmin<T>(
@@ -66,11 +76,39 @@ export async function fetchAdmin<T>(
   body?: unknown
 ): Promise<T> {
   try {
-    const response = await fetch('/api/admin', {
+    // For GET and DELETE requests, pass endpoint as query parameter
+    // For POST, include both endpoint and body in request body
+    const url = (method === 'GET' || method === 'DELETE')
+      ? `/api/admin?endpoint=${encodeURIComponent(endpoint)}`
+      : '/api/admin';
+    
+    const options: RequestInit = {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint, body }),
-    });
+    };
+    
+    // Only include body for POST requests
+    // For GET requests with body data (like query params), append to URL
+    if (method === 'POST' && body !== undefined) {
+      options.body = JSON.stringify({ endpoint, body });
+    } else if (method === 'GET' && body !== undefined && typeof body === 'object' && body !== null) {
+      // Append query params to the URL for GET requests
+      const urlObj = new URL(url, 'http://localhost:3000');
+      for (const [key, value] of Object.entries(body)) {
+        urlObj.searchParams.set(key, String(value));
+      }
+      // Use the modified URL (will be relative, fetch handles it)
+      const finalUrl = urlObj.toString().replace('http://localhost:3000', '');
+      return fetch(finalUrl, options).then(async (response) => {
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || `HTTP ${response.status}`);
+        }
+        return response.json();
+      });
+    }
+
+    const response = await fetch(url, options);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -129,11 +167,139 @@ export async function listModels(): Promise<ModelsListResponse> {
  * @returns Promise resolving to statistics
  */
 export async function getStats(from: Date, to: Date): Promise<LogStats> {
-  const params = new URLSearchParams({
-    from: from.toISOString(),
-    to: to.toISOString(),
-  });
-  return fetchBackend<LogStats>(`/admin/stats?${params}`);
+  // Pass endpoint without query params, and let fetchAdmin handle query params
+  return fetchAdmin<LogStats>('/admin/stats', 'GET', { from: from.toISOString(), to: to.toISOString() });
+}
+
+/**
+ * v2: Rate Limiting APIs
+ */
+
+/**
+ * Get rate limit status for an API key
+ * @param apiKeyHash - Hash of the API key
+ * @returns Current rate limit status
+ */
+export async function getRateLimitStatus(apiKeyHash: string): Promise<RateLimitStatus> {
+  return fetchAdmin<RateLimitStatus>(`/admin/ratelimits/${apiKeyHash}`, 'GET');
+}
+
+/**
+ * v2: Budget Management APIs
+ */
+
+/**
+ * Get budget for an entity
+ * @param entityType - Type of entity ('ApiKey' or 'Team')
+ * @param entityId - Entity identifier
+ * @returns Budget information
+ */
+export async function getBudget(entityType: 'ApiKey' | 'Team', entityId: string): Promise<Budget | null> {
+  try {
+    return await fetchAdmin<Budget>(`/admin/budgets/${entityType}/${entityId}`, 'GET');
+  } catch (error) {
+    // Return null if budget doesn't exist
+    return null;
+  }
+}
+
+/**
+ * Set or update budget for an entity
+ * @param entityType - Type of entity ('ApiKey' or 'Team')
+ * @param entityId - Entity identifier
+ * @param request - Budget settings
+ * @returns Updated budget
+ */
+export async function setBudget(entityType: 'ApiKey' | 'Team', entityId: string, request: SetBudgetRequest): Promise<Budget> {
+  return fetchAdmin<Budget>(`/admin/budgets/${entityType}/${entityId}`, 'POST', request);
+}
+
+/**
+ * Check budget status for an entity
+ * @param entityType - Type of entity ('ApiKey' or 'Team')
+ * @param entityId - Entity identifier
+ * @returns Budget check result
+ */
+export async function checkBudget(entityType: 'ApiKey' | 'Team', entityId: string): Promise<BudgetCheckResult> {
+  return fetchAdmin<BudgetCheckResult>(`/admin/budgets/${entityType}/${entityId}/check`, 'GET');
+}
+
+/**
+ * Update spending for an entity
+ * @param entityType - Type of entity ('ApiKey' or 'Team')
+ * @param entityId - Entity identifier
+ * @param request - Spending update request
+ * @returns Updated budget check result
+ */
+export async function updateSpending(entityType: 'ApiKey' | 'Team', entityId: string, request: UpdateSpendingRequest): Promise<BudgetCheckResult> {
+  return fetchAdmin<BudgetCheckResult>(`/admin/budgets/${entityType}/${entityId}/spending`, 'POST', request);
+}
+
+/**
+ * v2: Team/Org RBAC APIs
+ */
+
+/**
+ * Create a new team
+ * @param request - Team creation request
+ * @returns Created team
+ */
+export async function createTeam(request: CreateTeamRequest): Promise<Team> {
+  return fetchAdmin<Team>('/admin/teams', 'POST', request);
+}
+
+/**
+ * Get a team by ID
+ * @param teamId - Team identifier
+ * @returns Team information
+ */
+export async function getTeam(teamId: string): Promise<Team> {
+  return fetchAdmin<Team>(`/admin/teams/${teamId}`, 'GET');
+}
+
+/**
+ * Get all teams for the current user
+ * @returns Array of teams
+ */
+export async function getUserTeams(): Promise<Team[]> {
+  return fetchAdmin<Team[]>('/admin/teams', 'GET');
+}
+
+/**
+ * Add a member to a team
+ * @param teamId - Team identifier
+ * @param request - Member addition request
+ * @returns Added team member
+ */
+export async function addTeamMember(teamId: string, request: AddTeamMemberRequest): Promise<TeamMember> {
+  return fetchAdmin<TeamMember>(`/admin/teams/${teamId}/members`, 'POST', request);
+}
+
+/**
+ * Remove a member from a team
+ * @param teamId - Team identifier
+ * @param userId - User identifier
+ */
+export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
+  return fetchAdmin<void>(`/admin/teams/${teamId}/members/${userId}`, 'DELETE');
+}
+
+/**
+ * Get user's role in a team
+ * @param teamId - Team identifier
+ * @param userId - User identifier
+ * @returns Team member information
+ */
+export async function getUserRole(teamId: string, userId: string): Promise<TeamMember> {
+  return fetchAdmin<TeamMember>(`/admin/teams/${teamId}/members/${userId}/role`, 'GET');
+}
+
+/**
+ * Delete a team
+ * @param teamId - Team identifier
+ */
+export async function deleteTeam(teamId: string): Promise<void> {
+  return fetchAdmin<void>(`/admin/teams/${teamId}`, 'DELETE');
 }
 
 /**
@@ -233,4 +399,4 @@ async function streamChatCompletion(
   }
 }
 
-export type { ApiKey, CreateApiKeyRequest, CreateApiKeyResponse, LogStats, ChatCompletionRequest, ModelsListResponse } from './types';
+export type { ApiKey, CreateApiKeyRequest, CreateApiKeyResponse, LogStats, ChatCompletionRequest, ModelsListResponse, RateLimitConfig, RateLimitStatus, Budget, BudgetCheckResult, SetBudgetRequest, UpdateSpendingRequest, Team, TeamMember, TeamRole, CreateTeamRequest, AddTeamMemberRequest } from './types';

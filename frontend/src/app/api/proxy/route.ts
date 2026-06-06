@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
-const MASTER_KEY = process.env.LITELLM_MASTER_KEY;
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+const MASTER_KEY = process.env.NEXT_PUBLIC_LITELLM_MASTER_KEY || process.env.LITELLM_MASTER_KEY;
 
 export async function POST(request: NextRequest) {
   try {

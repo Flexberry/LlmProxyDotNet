@@ -42,8 +42,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_BACKEND_URL=http://backend:4000
-      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - NEXT_PUBLIC_BACKEND_URL=http://app:4000
+      - NEXT_PUBLIC_LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
     depends_on:
       - app
     restart: unless-stopped

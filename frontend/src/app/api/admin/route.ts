@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
-const MASTER_KEY = process.env.LITELLM_MASTER_KEY;
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+const MASTER_KEY = process.env.NEXT_PUBLIC_LITELLM_MASTER_KEY || process.env.LITELLM_MASTER_KEY;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -19,7 +19,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    // Build full URL with query params from the original request
+    const backendUrl = new URL(`${BACKEND_URL}${endpoint}`);
+    // Pass through any additional search params (like from, to for /admin/stats)
+    for (const [key, value] of searchParams.entries()) {
+      if (key !== 'endpoint') {
+        backendUrl.searchParams.set(key, value);
+      }
+    }
+
+    const response = await fetch(backendUrl.toString(), {
       method: 'GET',
       headers,
     });

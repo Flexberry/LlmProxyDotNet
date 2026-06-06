@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Key, Blocks, Settings } from 'lucide-react';
+import { LayoutDashboard, Key, Blocks, Settings, Shield, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -12,6 +12,8 @@ const navigation = [
   { name: 'Дашборд', href: '/', icon: LayoutDashboard },
   { name: 'API Ключи', href: '/keys', icon: Key },
   { name: 'Модели', href: '/models', icon: Blocks },
+  { name: 'Rate Limit & Budget', href: '/ratelimits', icon: Shield },
+  { name: 'Команды', href: '/teams', icon: Users },
   { name: 'Настройки', href: '/settings', icon: Settings },
 ];
 
@@ -53,7 +55,7 @@ export function Sidebar() {
 
       <div className="p-4 border-t">
         <div className="text-xs text-muted-foreground">
-          <p>v1.0.0</p>
+          <p>v2.0.0</p>
           <p className="mt-1">.NET 10 + Next.js 16</p>
         </div>
       </div>

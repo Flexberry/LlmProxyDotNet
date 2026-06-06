@@ -123,3 +123,19 @@ export const DialogTitle = ({
   />
 );
 DialogTitle.displayName = 'DialogTitle';
+
+/**
+ * Dialog footer container
+ * @param props - HTML div attributes
+ * @param props.className - Additional CSS classes
+ */
+export const DialogFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-4', className)}
+    {...props}
+  />
+);
+DialogFooter.displayName = 'DialogFooter';

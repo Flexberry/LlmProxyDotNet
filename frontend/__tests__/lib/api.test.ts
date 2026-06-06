@@ -77,7 +77,7 @@ describe('API Client', () => {
 
       const result = await listApiKeys();
       expect(fetch).toHaveBeenCalledWith(
-        '/api/admin',
+        expect.stringContaining('/api/admin?endpoint=%2Fadmin%2Fkeys'),
         expect.objectContaining({
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -142,16 +142,12 @@ describe('API Client', () => {
       await revokeApiKey('test-key-id');
 
       expect(fetch).toHaveBeenCalledWith(
-        '/api/admin',
+        expect.stringContaining('/api/admin?endpoint=%2Fadmin%2Fkeys%2Ftest-key-id'),
         expect.objectContaining({
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
         })
       );
-      
-      const call = (fetch as jest.Mock).mock.calls[0];
-      const body = JSON.parse(call[1].body);
-      expect(body.endpoint).toBe('/admin/keys/test-key-id');
     });
   });
 
