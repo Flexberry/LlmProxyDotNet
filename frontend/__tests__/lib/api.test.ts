@@ -6,6 +6,7 @@ describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NEXT_PUBLIC_LITELLM_MASTER_KEY = 'sk_master_test';
+    process.env.NEXT_PUBLIC_ADMIN_SECRET = 'admin_secret';
   });
 
   describe('fetchBackend', () => {

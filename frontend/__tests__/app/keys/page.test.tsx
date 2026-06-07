@@ -64,7 +64,9 @@ describe('ApiKeysPage', () => {
     expect(api.revokeApiKey).toHaveBeenCalledWith('key-123');
     
     // Проверяем, что listApiKeys был вызван ещё раз после revoke
-    expect((api.listApiKeys as jest.Mock).mock.calls.length).toBeGreaterThan(initialCallCount);
+    await waitFor(() => {
+      expect((api.listApiKeys as jest.Mock).mock.calls.length).toBeGreaterThan(initialCallCount);
+    });
   });
 
   it('displays empty state when no keys', async () => {

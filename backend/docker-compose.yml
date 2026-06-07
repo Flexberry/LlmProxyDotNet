@@ -37,7 +37,7 @@ services:
   # Frontend Next.js
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
@@ -79,7 +79,7 @@ services:
   # Ollama - локальный LLM
   ollama:
     build:
-      context: docker/ollama
+      context: ./docker/ollama
       dockerfile: Dockerfile
     environment:
       - OLLAMA_MODELS=llama3.2:latest mistral:latest

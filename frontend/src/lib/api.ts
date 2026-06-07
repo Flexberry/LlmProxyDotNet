@@ -62,60 +62,56 @@ export async function fetchBackend<T>(
   }
 }
 
-/**
- * Makes an administrative request via server-side API route
- * @template T - Expected response type
- * @param endpoint - Administrative endpoint path
- * @param method - HTTP method (GET, POST, DELETE)
- * @param body - Request body (not used for GET/DELETE requests)
- * @returns Promise resolving to the response data
- */
+// Серверные API функции для административных операций
+// Эти функции вызывают server-side API route (/api/admin), который сам добавляет ADMIN_SECRET
 export async function fetchAdmin<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'DELETE' = 'GET',
   body?: unknown
 ): Promise<T> {
   try {
-    // For GET and DELETE requests, pass endpoint as query parameter
-    // For POST, include both endpoint and body in request body
-    const url = (method === 'GET' || method === 'DELETE')
-      ? `/api/admin?endpoint=${encodeURIComponent(endpoint)}`
-      : '/api/admin';
-    
-    const options: RequestInit = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
+    // Для клиентского кода не добавляем Authorization header — это делает server-side API route
+    const headers: HeadersInit = { 
+      'Content-Type': 'application/json',
     };
     
-    // Only include body for POST requests
-    // For GET requests with body data (like query params), append to URL
-    if (method === 'POST' && body !== undefined) {
-      options.body = JSON.stringify({ endpoint, body });
-    } else if (method === 'GET' && body !== undefined && typeof body === 'object' && body !== null) {
-      // Append query params to the URL for GET requests
-      const urlObj = new URL(url, 'http://localhost:3000');
-      for (const [key, value] of Object.entries(body)) {
-        urlObj.searchParams.set(key, String(value));
-      }
-      // Use the modified URL (will be relative, fetch handles it)
-      const finalUrl = urlObj.toString().replace('http://localhost:3000', '');
-      return fetch(finalUrl, options).then(async (response) => {
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || `HTTP ${response.status}`);
-        }
-        return response.json();
+    // Для GET и DELETE используем query params, для POST — JSON body
+    if (method === 'GET' || method === 'DELETE') {
+      const params = new URLSearchParams({ endpoint });
+      const response = await fetch(`/api/admin?${params}`, {
+        method,
+        headers,
       });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+
+      // DELETE может возвращать пустой ответ (204)
+      if (method === 'DELETE') {
+        const contentLength = response.headers?.get("content-length");
+        if (response.status === 204 || contentLength === "0") {
+          return {} as T;
+        }
+      }
+
+      return response.json();
+    } else {
+      // POST с JSON body
+      const response = await fetch(`/api/admin`, {
+        method,
+        headers,
+        body: JSON.stringify({ endpoint, body }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+
+      return response.json();
     }
-
-    const response = await fetch(url, options);
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `HTTP ${response.status}`);
-    }
-
-    return response.json();
   } catch (error) {
     console.error(`Admin API Error [${endpoint}]:`, error);
     throw error;
@@ -312,19 +308,13 @@ export async function deleteTeam(teamId: string): Promise<void> {
 export async function createChatCompletion(
   request: ChatCompletionRequest,
   userApiKey: string,
-  onChunk?: (chunk: unknown) => void
-): Promise<unknown> {
+  onChunk?: (chunk: any) => void
+): Promise<any> {
   if (request.stream) {
-    if (onChunk) {
-      return streamChatCompletion(request, userApiKey, onChunk);
-    } else {
-      // If stream=true without onChunk, use server-side handler
-      return fetchAdmin<unknown>('/proxy/chat', 'POST', {
-        path: '/v1/chat/completions',
-        body: { ...request, stream: true },
-        headers: { Authorization: `Bearer ${userApiKey}` },
-      });
+    if (!onChunk) {
+      throw new Error('stream:true requires onChunk callback');
     }
+    return streamChatCompletion(request, userApiKey, onChunk);
   }
 
   const response = await fetch(`${BACKEND_URL}/v1/chat/completions`, {
