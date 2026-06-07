@@ -57,6 +57,7 @@ export function Sidebar() {
         <div className="text-xs text-muted-foreground">
           <p>v2.0.0</p>
           <p className="mt-1">.NET 10 + Next.js 16</p>
+          <p className="mt-1">PostgreSQL + Redis</p>
         </div>
       </div>
     </aside>
