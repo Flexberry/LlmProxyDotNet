@@ -70,4 +70,54 @@ public class SimpleRouterTests
         Assert.Equal("openai", providerSequence[0]);
         Assert.Equal("ollama", providerSequence[1]);
     }
+
+    [Fact]
+    public async Task SelectProviderAsync_ThrowsWhenNoProviders()
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await _router.SelectProviderAsync("gpt-4", Enumerable.Empty<ILlmProvider>()));
+    }
+
+    [Fact]
+    public async Task ExecuteWithFallback_ThrowsWhenAllProvidersFail()
+    {
+        var operation = (Func<ILlmProvider, CancellationToken, Task<string>>)(async (_, _) => 
+            throw new HttpRequestException("Failed", null, HttpStatusCode.ServiceUnavailable));
+
+        await Assert.ThrowsAsync<AggregateException>(
+            async () => await _router.ExecuteWithFallback(operation, "test-model", _providers, maxRetries: 2));
+    }
+
+    [Fact]
+    public async Task ExecuteWithFallback_StopsOnClientError()
+    {
+        var callCount = 0;
+        var operation = (Func<ILlmProvider, CancellationToken, Task<string>>)(async (_, _) => 
+        {
+            callCount++;
+            throw new HttpRequestException("Bad Request", null, HttpStatusCode.BadRequest);
+        });
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            async () => await _router.ExecuteWithFallback(operation, "test-model", _providers, maxRetries: 3));
+        
+        // Should not retry on client error (4xx)
+        Assert.Equal(1, callCount);
+    }
+
+    [Fact]
+    public async Task ExecuteWithFallback_HandlesCancellation()
+    {
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var operation = (Func<ILlmProvider, CancellationToken, Task<string>>)(async (_, ct) => 
+        {
+            ct.ThrowIfCancellationRequested();
+            return "success";
+        });
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await _router.ExecuteWithFallback(operation, "test-model", _providers, maxRetries: 2, ct: cts.Token));
+    }
 }

@@ -117,4 +117,96 @@ public class OllamaAdapterTests
         // Assert
         Assert.Equal("llama3", result);
     }
+
+    [Fact]
+    public async Task CreateEmbeddingsAsync_ReturnsEmbeddings()
+    {
+        // Arrange
+        var embeddingsResponse = new
+        {
+            embeddings = new List<List<float>> { new List<float> { 0.1f, 0.2f, 0.3f } },
+            total_token_count = 10
+        };
+
+        _mockHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => 
+                    r.RequestUri != null &&
+                    r.RequestUri.ToString().Contains("/api/embed")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(JsonSerializer.Serialize(embeddingsResponse), Encoding.UTF8, "application/json")
+            });
+
+        var adapter = new OllamaAdapter(_httpClient, _settings, NullLogger<OllamaAdapter>.Instance);
+        var request = new EmbeddingRequest
+        {
+            Model = "ollama/llama3",
+            Input = new List<string> { "Hello world" }
+        };
+
+        // Act
+        var result = await adapter.CreateEmbeddingsAsync(request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(1, result.Data.Count);
+        Assert.Equal(3, result.Data[0].Embedding.Count);
+        Assert.Equal(10, result.Usage.PromptTokens);
+    }
+
+    [Fact]
+    public async Task CreateChatCompletionAsync_HandlesProviderError()
+    {
+        // Arrange
+        _mockHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage { StatusCode = HttpStatusCode.InternalServerError });
+
+        var adapter = new OllamaAdapter(_httpClient, _settings, NullLogger<OllamaAdapter>.Instance);
+        var request = new ChatCompletionRequest
+        {
+            Model = "ollama/llama3",
+            Messages = [new ChatMessage { Role = "user", Content = "Hi" }]
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await adapter.CreateChatCompletionAsync(request));
+    }
+
+    [Fact]
+    public async Task CreateChatCompletionStreamAsync_HandlesStreamError()
+    {
+        // Arrange
+        _mockHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage { StatusCode = HttpStatusCode.ServiceUnavailable });
+
+        var adapter = new OllamaAdapter(_httpClient, _settings, NullLogger<OllamaAdapter>.Instance);
+        var request = new ChatCompletionRequest
+        {
+            Model = "ollama/llama3",
+            Messages = [new ChatMessage { Role = "user", Content = "Hi" }],
+            Stream = true
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<HttpRequestException>(async () =>
+        {
+            await foreach (var _ in adapter.CreateChatCompletionStreamAsync(request)) { }
+        });
+    }
 }

@@ -83,5 +83,34 @@ describe('Utils', () => {
       }).format(new Date('2024-01-01'));
       expect(result).toBe(expected);
     });
+
+    it('handles Date.now()', () => {
+      const now = new Date();
+      expect(formatDate(now)).toBeDefined();
+      expect(typeof formatDate(now)).toBe('string');
+    });
+
+    it('handles empty string gracefully', () => {
+      expect(() => formatDate('')).not.toThrow();
+    });
+  });
+
+  describe('formatBytes edge cases', () => {
+    it('handles negative bytes', () => {
+      expect(formatBytes(-100)).toBe('0 B');
+    });
+
+    it('handles very large bytes', () => {
+      expect(formatBytes(1024 * 1024 * 1024 * 1024)).toBe('1 TB');
+    });
+
+    it('handles fractional bytes', () => {
+      expect(formatBytes(0.5)).toBe('0.5 B');
+    });
+
+    it('uses default decimals', () => {
+      expect(formatBytes(1024)).toBe('1 KB');
+      expect(formatBytes(1536)).toBe('1.5 KB');
+    });
   });
 });

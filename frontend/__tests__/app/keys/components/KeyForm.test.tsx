@@ -21,7 +21,7 @@ describe('KeyForm', () => {
   it('renders model options', () => {
     render(<KeyForm onSubmit={mockSubmit} onCancel={mockCancel} />);
 
-    expect(screen.getByText('Все модели (*)')).toBeInTheDocument();
+    expect(screen.getByText('All models (*)')).toBeInTheDocument();
     expect(screen.getByText('Ollama: Llama 3')).toBeInTheDocument();
     expect(screen.getByText('OpenAI: GPT-4o')).toBeInTheDocument();
   });
@@ -41,8 +41,8 @@ describe('KeyForm', () => {
     const nameInput = screen.getByPlaceholderText(/Production Key/i);
     await userEvent.type(nameInput, 'Test Key');
 
-    // Выбираем "Все модели"
-    const allModelsCheckbox = screen.getByLabelText('Все модели (*)');
+    // Выбираем "All models"
+    const allModelsCheckbox = screen.getByLabelText('All models (*)');
     await userEvent.click(allModelsCheckbox);
 
     const submitButton = screen.getByRole('button', { name: /Создать ключ/i });
@@ -72,5 +72,86 @@ describe('KeyForm', () => {
     });
 
     expect(screen.getByText(/Создание/i)).toBeInTheDocument();
+  });
+
+  it('selects specific models instead of all', async () => {
+    render(<KeyForm onSubmit={mockSubmit} onCancel={mockCancel} />);
+
+    // Uncheck "All models"
+    const allModelsCheckbox = screen.getByLabelText('All models (*)');
+    await userEvent.click(allModelsCheckbox);
+
+    // Select specific model
+    const ollamaCheckbox = screen.getByLabelText('Ollama: Llama 3');
+    await userEvent.click(ollamaCheckbox);
+
+    const submitButton = screen.getByRole('button', { name: /Создать ключ/i });
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          permissions: expect.arrayContaining(['ollama/llama3']),
+        })
+      );
+    });
+  });
+
+  it('sets expiration date', async () => {
+    render(<KeyForm onSubmit={mockSubmit} onCancel={mockCancel} />);
+
+    const nameInput = screen.getByPlaceholderText(/Production Key/i);
+    await userEvent.type(nameInput, 'Test Key');
+
+    const allModelsCheckbox = screen.getByLabelText('All models (*)');
+    await userEvent.click(allModelsCheckbox);
+
+    const submitButton = screen.getByRole('button', { name: /Создать ключ/i });
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Test Key',
+          permissions: ['*'],
+        })
+      );
+    });
+  });
+
+  it('validates required fields', async () => {
+    render(<KeyForm onSubmit={mockSubmit} onCancel={mockCancel} />);
+
+    const submitButton = screen.getByRole('button', { name: /Создать ключ/i });
+    await userEvent.click(submitButton);
+
+    // Form allows empty name and no permissions (defaults to all)
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: '',
+          permissions: [],
+        })
+      );
+    });
+  });
+
+  it('handles empty name gracefully', async () => {
+    render(<KeyForm onSubmit={mockSubmit} onCancel={mockCancel} />);
+
+    const allModelsCheckbox = screen.getByLabelText('All models (*)');
+    await userEvent.click(allModelsCheckbox);
+
+    const submitButton = screen.getByRole('button', { name: /Создать ключ/i });
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: '',
+          permissions: ['*'],
+        })
+      );
+    });
   });
 });

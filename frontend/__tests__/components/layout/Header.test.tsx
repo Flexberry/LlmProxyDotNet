@@ -22,4 +22,25 @@ describe('Header', () => {
     const header = container.querySelector('header');
     expect(header).toHaveClass('sticky', 'top-0');
   });
+
+  it('has correct z-index', () => {
+    const { container } = render(<Header />);
+
+    const header = container.querySelector('header');
+    expect(header).toHaveClass('z-30');
+  });
+
+  it('has border-bottom', () => {
+    const { container } = render(<Header />);
+
+    const header = container.querySelector('header');
+    expect(header).toHaveClass('border-b');
+  });
+
+  it('has correct height', () => {
+    const { container } = render(<Header />);
+
+    const header = container.querySelector('header');
+    expect(header).toHaveClass('h-16');
+  });
 });

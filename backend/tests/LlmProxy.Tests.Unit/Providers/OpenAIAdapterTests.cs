@@ -130,4 +130,54 @@ public class OpenAIAdapterTests
         // Act & Assert
         await Assert.ThrowsAsync<HttpRequestException>(() => adapter.CreateChatCompletionAsync(request));
     }
+
+    [Fact]
+    public async Task CreateEmbeddingsAsync_ReturnsEmbeddings()
+    {
+        // Arrange
+        var embeddingsResponse = new EmbeddingResponse
+        {
+            Model = "text-embedding-ada-002",
+            Data = [new EmbeddingData { Index = 0, Embedding = new List<float> { 0.1f, 0.2f, 0.3f } }],
+            Usage = new Usage { PromptTokens = 5, TotalTokens = 5 }
+        };
+
+        _mockHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri != null && r.RequestUri.ToString().Contains("/embeddings")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(JsonSerializer.Serialize(embeddingsResponse), Encoding.UTF8, "application/json")
+            });
+
+        var adapter = new OpenAIAdapter(_httpClient, _settings, NullLogger<OpenAIAdapter>.Instance);
+        var request = new EmbeddingRequest
+        {
+            Model = "openai/text-embedding-ada-002",
+            Input = new List<string> { "Hello world" }
+        };
+
+        // Act
+        var result = await adapter.CreateEmbeddingsAsync(request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(1, result.Data.Count);
+        Assert.Equal(3, result.Data[0].Embedding.Count);
+    }
+
+    [Fact]
+    public void ProviderName_ReturnsOpenai()
+    {
+        // Arrange
+        var adapter = new OpenAIAdapter(_httpClient, _settings, NullLogger<OpenAIAdapter>.Instance);
+
+        // Act & Assert
+        Assert.Equal("openai", adapter.ProviderName);
+        Assert.Equal("openai/", adapter.Prefix);
+    }
 }

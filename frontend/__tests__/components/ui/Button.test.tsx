@@ -43,4 +43,54 @@ describe('Button Component', () => {
     expect(button).toBeDisabled();
     expect(button).toHaveClass('disabled:pointer-events-none', 'disabled:opacity-50');
   });
+
+  it('supports outline variant', () => {
+    render(<Button variant="outline">Outline</Button>);
+    const button = screen.getByRole('button', { name: /outline/i });
+    
+    expect(button).toHaveClass('border', 'border-input');
+  });
+
+  it('supports secondary variant', () => {
+    render(<Button variant="secondary">Secondary</Button>);
+    const button = screen.getByRole('button', { name: /secondary/i });
+    
+    expect(button).toHaveClass('bg-secondary', 'text-secondary-foreground');
+  });
+
+  it('supports ghost variant', () => {
+    render(<Button variant="ghost">Ghost</Button>);
+    const button = screen.getByRole('button', { name: /ghost/i });
+    
+    expect(button).not.toHaveClass('bg-primary');
+  });
+
+  it('supports link variant', () => {
+    render(<Button variant="link">Link</Button>);
+    const button = screen.getByRole('button', { name: /link/i });
+    
+    expect(button).toHaveClass('text-primary', 'underline-offset-4');
+  });
+
+  it('merges custom className correctly', () => {
+    render(<Button className="custom-class">Test</Button>);
+    const button = screen.getByRole('button', { name: /test/i });
+    
+    expect(button).toHaveClass('custom-class');
+    expect(button).toHaveClass('inline-flex');
+  });
+
+  it('renders with sm size', () => {
+    render(<Button size="sm">Small</Button>);
+    const button = screen.getByRole('button', { name: /small/i });
+    
+    expect(button).toHaveClass('h-8', 'text-xs');
+  });
+
+  it('renders with lg size', () => {
+    render(<Button size="lg">Large</Button>);
+    const button = screen.getByRole('button', { name: /large/i });
+    
+    expect(button).toHaveClass('h-10', 'px-8');
+  });
 });
