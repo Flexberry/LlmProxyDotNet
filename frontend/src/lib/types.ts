@@ -1,277 +1,277 @@
 /**
- * API key for client authentication
+ * API ключ для аутентификации клиента
  */
 export interface ApiKey {
-  /** Unique identifier for the key */
+  /** Уникальный идентификатор ключа */
   id: string;
-  /** SHA256 hash of the key */
+  /** SHA256 хеш ключа */
   keyHash: string;
-  /** Plain text key (only for newly created keys, not stored in DB) */
+  /** Плоский ключ (только для новых ключей, не сохраняется в БД) */
   key?: string;
-  /** Human-readable name for the key */
+  /** Человеко-читаемое имя ключа */
   name?: string;
-  /** Allowed models (JSON string or "*" for all) */
+  /** Разрешённые модели (JSON строка или "*" для всех) */
   permissions: string;
-  /** Expiration date for the key */
+  /** Дата истечения ключа */
   expiresAt?: string;
-  /** Active status of the key */
+  /** Статус активности ключа */
   isActive: boolean;
-  /** Creation date of the key */
+  /** Дата создания ключа */
   createdAt: string;
-  /** Team ID (v2) */
+  /** ID команды (v2) */
   teamId?: string;
 }
 
 /**
- * Request to create a new API key
+ * Запрос на создание нового API ключа
  */
 export interface CreateApiKeyRequest {
-  /** Name for the key */
+  /** Имя ключа */
   name?: string;
-  /** Allowed models (["*"] or ["ollama/llama3", "openai/gpt-4"]) */
+  /** Разрешённые модели (["*"] или ["ollama/llama3", "openai/gpt-4"]) */
   permissions?: string[];
-  /** Expiration date */
+  /** Дата истечения */
   expiresAt?: string;
-  /** Rate limit configuration (v2) */
+  /** Конфигурация rate limit (v2) */
   rateLimitConfig?: RateLimitConfig;
 }
 
 /**
- * Response for new API key creation
+ * Ответ на создание нового API ключа
  */
 export interface CreateApiKeyResponse {
-  /** Plain text key (shown only once!) */
+  /** Плоский ключ (показывается только один раз!) */
   key: string;
-  /** Created API key object */
+  /** Созданный объект API ключа */
   apiKey: ApiKey;
 }
 
 /**
- * Model information
+ * Информация о модели
  */
 export interface Model {
-  /** Unique model identifier */
+  /** Уникальный идентификатор модели */
   id: string;
-  /** Object type (always "model") */
+  /** Тип объекта (всегда "model") */
   object: string;
-  /** Creation timestamp */
+  /** Временная метка создания */
   created?: number;
-  /** Model owner */
+  /** Владелец модели */
   owned_by: string;
 }
 
 /**
- * Response for models list request
+ * Ответ на запрос списка моделей
  */
 export interface ModelsListResponse {
   data: Model[];
 }
 
 /**
- * LLM Proxy usage statistics
+ * Статистика использования LLM Proxy
  */
 export interface LogStats {
-  /** Total number of requests */
+  /** Общее количество запросов */
   totalRequests: number;
-  /** Number of successful requests */
+  /** Количество успешных запросов */
   successCount: number;
-  /** Number of failed requests */
+  /** Количество неудачных запросов */
   errorCount: number;
-  /** Average latency in milliseconds */
+  /** Средняя задержка в миллисекундах */
   avgLatencyMs: number;
-  /** Requests grouped by model */
+  /** Запросы, сгруппированные по модели */
   requestsByModel: Record<string, number>;
-  /** Requests grouped by provider */
+  /** Запросы, сгруппированные по провайдеру */
   requestsByProvider: Record<string, number>;
 }
 
 // v2 Types - Rate Limiting
 /**
- * Rate limit configuration for an API key
+ * Конфигурация rate limit для API ключа
  */
 export interface RateLimitConfig {
-  /** Maximum requests per minute */
+  /** Максимум запросов в минуту */
   requestsPerMinute: number;
-  /** Maximum tokens per minute */
+  /** Максимум токенов в минуту */
   tokensPerMinute: number;
-  /** Maximum requests per day */
+  /** Максимум запросов в день */
   requestsPerDay: number;
-  /** Maximum daily cost in dollars (optional) */
+  /** Максимум ежедневных расходов в долларах (опционально) */
   maxDailyCost?: number;
 }
 
 /**
- * Current rate limit status for an API key
+ * Текущий статус rate limit для API ключа
  */
 export interface RateLimitStatus {
-  /** Requests made this minute */
+  /** Запросов сделано за эту минуту */
   requestsThisMinute: number;
-  /** Requests made today */
+  /** Запросов сделано сегодня */
   requestsThisDay: number;
-  /** Tokens used this minute */
+  /** Токенов использовано за эту минуту */
   tokensThisMinute: number;
-  /** Whether the key is currently rate limited */
+  /** В данный момент ограничен ли ключ rate limit */
   isRateLimited: boolean;
-  /** When the limits reset (optional) */
+  /** Время сброса лимитов (опционально) */
   resetAt?: string;
 }
 
 // v2 Types - Budget Management
 /**
- * Budget configuration for an entity (ApiKey or Team)
+ * Конфигурация бюджета для сущности (ApiKey или Team)
  */
 export interface Budget {
-  /** Budget identifier */
+  /** Идентификатор бюджета */
   id: string;
-  /** Entity identifier (ApiKey ID or Team ID) */
+  /** Идентификатор сущности (ID ApiKey или ID Team) */
   entityId: string;
-  /** Entity type */
+  /** Тип сущности */
   entityType: 'ApiKey' | 'Team';
-  /** Maximum budget amount */
+  /** Максимальная сумма бюджета */
   budgetAmount: number;
-  /** Current spending */
+  /** Текущие расходы */
   currentSpending: number;
-  /** Action when budget is exceeded */
+  /** Действие при превышении бюджета */
   limitAction: 'warn' | 'block';
-  /** Budget period start date */
+  /** Дата начала периода бюджета */
   periodStart?: string;
-  /** Budget period end date */
+  /** Дата конца периода бюджета */
   periodEnd?: string;
-  /** Creation timestamp */
+  /** Временная метка создания */
   createdAt: string;
-  /** Last update timestamp */
+  /** Временная метка последнего обновления */
   updatedAt: string;
 }
 
 /**
- * Budget check result
+ * Результат проверки бюджета
  */
 export interface BudgetCheckResult {
-  /** Maximum budget amount */
+  /** Максимальная сумма бюджета */
   budgetAmount: number;
-  /** Current spending */
+  /** Текущие расходы */
   currentSpending: number;
-  /** Remaining budget */
+  /** Оставшийся бюджет */
   remainingBudget: number;
-  /** Whether requests should be blocked */
+  /** Следует ли блокировать запросы */
   shouldBlock: boolean;
-  /** Percentage of budget used */
+  /** Процент использованного бюджета */
   percentageUsed: number;
 }
 
 /**
- * Request to set/update a budget
+ * Запрос на установку/обновление бюджета
  */
 export interface SetBudgetRequest {
-  /** Budget amount */
+  /** Сумма бюджета */
   budgetAmount: number;
-  /** Action when exceeded */
+  /** Действие при превышении */
   limitAction: 'warn' | 'block';
-  /** Period end date (optional) */
+  /** Дата конца периода (опционально) */
   periodEnd?: string;
 }
 
 /**
- * Request to update spending
+ * Запрос на обновление расходов
  */
 export interface UpdateSpendingRequest {
-  /** Cost to add */
+  /** Расходы для добавления */
   cost: number;
 }
 
 // v2 Types - Team/Org RBAC
 /**
- * Team member role
+ * Роль участника команды
  */
 export type TeamRole = 'Owner' | 'Admin' | 'Member' | 'Viewer';
 
 /**
- * Team information
+ * Информация о команде
  */
 export interface Team {
-  /** Team identifier */
+  /** Идентификатор команды */
   id: string;
-  /** Team name */
+  /** Название команды */
   name: string;
-  /** Team description */
+  /** Описание команды */
   description?: string;
-  /** Owner user ID */
+  /** ID владельца команды */
   ownerId: string;
-  /** Creation timestamp */
+  /** Временная метка создания */
   createdAt: string;
-  /** Last update timestamp */
+  /** Временная метка последнего обновления */
   updatedAt: string;
 }
 
 /**
- * Team member information
+ * Информация об участнике команды
  */
 export interface TeamMember {
-  /** Member identifier */
+  /** Идентификатор участника */
   id: string;
-  /** Team identifier */
+  /** Идентификатор команды */
   teamId: string;
-  /** User identifier */
+  /** Идентификатор пользователя */
   userId: string;
-  /** Member role */
+  /** Роль участника */
   role: TeamRole;
-  /** Allowed models (optional) */
+  /** Разрешённые модели (опционально) */
   allowedModels?: string[];
-  /** Creation timestamp */
+  /** Временная метка создания */
   createdAt: string;
 }
 
 /**
- * Request to create a team
+ * Запрос на создание команды
  */
 export interface CreateTeamRequest {
-  /** Team name */
+  /** Название команды */
   name: string;
-  /** Team description (optional) */
+  /** Описание команды (опционально) */
   description?: string;
 }
 
 /**
- * Request to add a team member
+ * Запрос на добавление участника команды
  */
 export interface AddTeamMemberRequest {
-  /** User ID to add */
+  /** ID пользователя для добавления */
   userId: string;
-  /** Role for the member */
+  /** Роль участника */
   role: TeamRole;
-  /** Allowed models (optional) */
+  /** Разрешённые модели (опционально) */
   allowedModels?: string[];
 }
 
 // v2 Chat types
 /**
- * Chat message
+ * Сообщение чата
  */
 export interface ChatMessage {
-  /** Sender role */
+  /** Роль отправителя */
   role: 'system' | 'user' | 'assistant' | 'tool';
-  /** Message content */
+  /** Содержание сообщения */
   content: string;
-  /** Optional sender name */
+  /** Опциональное имя отправителя */
   name?: string;
 }
 
 /**
- * Chat completion request
+ * Запрос на завершение чата
  */
 export interface ChatCompletionRequest {
-  /** Model name */
+  /** Название модели */
   model: string;
-  /** Chat messages */
+  /** Сообщения чата */
   messages: ChatMessage[];
-  /** Enable streaming response */
+  /** Включить потоковый ответ */
   stream?: boolean;
-  /** Generation temperature (0-2) */
+  /** Температура генерации (0-2) */
   temperature?: number;
-  /** Maximum token count */
+  /** Максимальное количество токенов */
   max_tokens?: number;
-  /** Generation stop sequences */
+  /** Стоп-последовательности генерации */
   stop?: string[];
-  /** Additional properties */
+  /** Дополнительные свойства */
   [key: string]: unknown;
 }

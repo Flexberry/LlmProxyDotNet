@@ -5,7 +5,7 @@ namespace LlmProxy.Core.Models.Dto;
 public record ChatMessage
 {
     [JsonPropertyName("role")]
-    public string Role { get; init; } = string.Empty; // "system", "user", "assistant", "tool"
+    public string Role { get; init; } = string.Empty; // "system", "user", "assistant", "tool" (роль сообщения)
     
     [JsonPropertyName("content")]
     public string? Content { get; init; }

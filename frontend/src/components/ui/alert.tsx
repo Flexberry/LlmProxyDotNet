@@ -1,15 +1,15 @@
 import { HTMLAttributes, forwardRef } from 'react';
 
 interface AlertProps extends HTMLAttributes<HTMLDivElement> {
-  /** Alert visual variant */
+  /** Визуальный вариант Alert */
   variant?: 'default' | 'destructive';
 }
 
 /**
- * Alert component for displaying messages
- * @param props - Alert properties
- * @param props.className - Additional CSS classes
- * @param props.variant - Visual variant (default: 'default')
+ * Компонент Alert для отображения сообщений
+ * @param props - Свойства Alert
+ * @param props.className - Дополнительные CSS классы
+ * @param props.variant - Визуальный вариант (по умолчанию: 'default')
  */
 export const Alert = forwardRef<HTMLDivElement, AlertProps>(
   ({ className, variant = 'default', ...props }, ref) => (
@@ -28,9 +28,9 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(
 Alert.displayName = 'Alert';
 
 /**
- * Alert description component
- * @param props - HTML paragraph attributes
- * @param props.className - Additional CSS classes
+ * Компонент описания Alert
+ * @param props - HTML paragraph атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const AlertDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (

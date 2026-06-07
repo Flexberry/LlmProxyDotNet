@@ -10,11 +10,11 @@ const DialogContext = React.createContext<{
 }>({ open: false, setOpen: () => {} });
 
 /**
- * Dialog root component that manages open state
- * @param props - Dialog properties
- * @param props.children - Dialog content
- * @param props.open - Open state
- * @param props.onOpenChange - Callback when open state changes
+ * Корневой компонент Dialog, управляющий состоянием open
+ * @param props - Свойства Dialog
+ * @param props.children - Содержимое Dialog
+ * @param props.open - Состояние открытия
+ * @param props.onOpenChange - Callback при изменении состояния
  */
 export const Dialog = ({
   children,
@@ -33,10 +33,10 @@ export const Dialog = ({
 };
 
 /**
- * Dialog trigger button component
- * @param props - Trigger properties
- * @param props.children - Trigger content
- * @param props.asChild - Whether to clone child element (default: false)
+ * Компонент-триггер Dialog
+ * @param props - Свойства триггера
+ * @param props.children - Содержимое триггера
+ * @param props.asChild - Следует ли клонировать дочерний элемент (по умолчанию: false)
  */
 export const DialogTrigger = ({
   children,
@@ -55,10 +55,10 @@ export const DialogTrigger = ({
 };
 
 /**
- * Dialog content container
- * @param props - Content properties
- * @param props.children - Dialog content
- * @param props.className - Additional CSS classes
+ * Контейнер содержимого Dialog
+ * @param props - Свойства контента
+ * @param props.children - Содержимое Dialog
+ * @param props.className - Дополнительные CSS классы
  */
 export const DialogContent = ({
   children,
@@ -93,9 +93,9 @@ export const DialogContent = ({
 };
 
 /**
- * Dialog header container
- * @param props - HTML div attributes
- * @param props.className - Additional CSS classes
+ * Контейнер заголовка Dialog
+ * @param props - HTML div атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const DialogHeader = ({
   className,
@@ -109,9 +109,9 @@ export const DialogHeader = ({
 DialogHeader.displayName = 'DialogHeader';
 
 /**
- * Dialog title component
- * @param props - HTML heading attributes
- * @param props.className - Additional CSS classes
+ * Компонент заголовка Dialog
+ * @param props - HTML heading атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const DialogTitle = ({
   className,
@@ -125,9 +125,9 @@ export const DialogTitle = ({
 DialogTitle.displayName = 'DialogTitle';
 
 /**
- * Dialog footer container
- * @param props - HTML div attributes
- * @param props.className - Additional CSS classes
+ * Контейнер подвала Dialog
+ * @param props - HTML div атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const DialogFooter = ({
   className,

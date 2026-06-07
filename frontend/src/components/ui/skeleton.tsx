@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils';
 
 /**
- * Skeleton loading placeholder component
- * @param props - HTML div attributes
- * @param props.className - Additional CSS classes
+ * Компонент-заглушка Skeleton для состояния загрузки
+ * @param props - HTML div атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 function Skeleton({
   className,

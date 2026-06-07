@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Header component for the application layout
- * @returns Header JSX element
+ * Компонент шапки для макета приложения
+ * @returns Header JSX элемент
  */
 export function Header() {
   return (

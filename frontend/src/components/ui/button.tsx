@@ -1,20 +1,23 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Интерфейс свойств кнопки
+ */
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Button visual variant */
+  /** Визуальный вариант кнопки */
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  /** Button size variant */
+  /** Вариант размера кнопки */
   size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
 /**
- * Button component with multiple variants and sizes
- * @param props - Button properties
- * @param props.className - Additional CSS classes
- * @param props.variant - Visual variant (default: 'default')
- * @param props.size - Size variant (default: 'default')
- * @param props.ref - Forwarded ref to button element
+ * Компонент кнопки с несколькими вариантами и размерами
+ * @param props - Свойства кнопки
+ * @param props.className - Дополнительные CSS классы
+ * @param props.variant - Визуальный вариант (по умолчанию: 'default')
+ * @param props.size - Вариант размера (по умолчанию: 'default')
+ * @param props.ref - Пробрасываемый реф к элементу кнопки
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'default', size = 'default', ...props }, ref) => {

@@ -1,15 +1,15 @@
 import { HTMLAttributes, forwardRef } from 'react';
 
 interface BadgeProps extends HTMLAttributes<HTMLDivElement> {
-  /** Badge visual variant */
+  /** Визуальный вариант Badge */
   variant?: 'default' | 'secondary' | 'destructive' | 'outline';
 }
 
 /**
- * Badge component for displaying status labels
- * @param props - Badge properties
- * @param props.className - Additional CSS classes
- * @param props.variant - Visual variant (default: 'default')
+ * Компонент Badge для отображения меток статуса
+ * @param props - Свойства Badge
+ * @param props.className - Дополнительные CSS классы
+ * @param props.variant - Визуальный вариант (по умолчанию: 'default')
  */
 export const Badge = forwardRef<HTMLDivElement, BadgeProps>(
   ({ className, variant = 'default', ...props }, ref) => {

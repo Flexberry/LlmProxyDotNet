@@ -6,7 +6,7 @@ import { LayoutDashboard, Key, Blocks, Settings, Shield, Users } from 'lucide-re
 import { cn } from '@/lib/utils';
 
 /**
- * Navigation menu items configuration
+ * Конфигурация элементов навигационного меню
  */
 const navigation = [
   { name: 'Дашборд', href: '/', icon: LayoutDashboard },
@@ -18,8 +18,8 @@ const navigation = [
 ];
 
 /**
- * Sidebar navigation component
- * @returns Sidebar JSX element
+ * Компонент боковой панели навигации
+ * @returns Sidebar JSX элемент
  */
 export function Sidebar() {
   const pathname = usePathname();

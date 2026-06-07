@@ -2,19 +2,19 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 /**
- * Combines and merges Tailwind CSS classes
- * @param inputs - CSS class values to combine
- * @returns Merged CSS class string
+ * Объединяет и сливает Tailwind CSS классы
+ * @param inputs - Значения CSS классов для объединения
+ * @returns Объединённая строка CSS классов
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * Formats bytes into human-readable format
- * @param bytes - Number of bytes to format
- * @param decimals - Number of decimal places (default: 2)
- * @returns Formatted byte string (e.g., "1.5 KB")
+ * Форматирует байты в человеко-читаемый формат
+ * @param bytes - Количество байт для форматирования
+ * @param decimals - Количество знаков после запятой (по умолчанию: 2)
+ * @returns Отформатированная строка байт (например, "1.5 KB")
  */
 export function formatBytes(bytes: number, decimals = 2) {
   if (bytes <= 0) return '0 B';
@@ -26,9 +26,9 @@ export function formatBytes(bytes: number, decimals = 2) {
 }
 
 /**
- * Formats a date into localized string
- * @param date - Date string or Date object to format
- * @returns Formatted date string (e.g., "Jan 15, 2025")
+ * Форматирует дату в локализованную строку
+ * @param date - Строка даты или объект Date для форматирования
+ * @returns Отформатированная строка даты (например, "15 янв. 2025")
  */
 export function formatDate(date: string | Date) {
   return new Date(date).toLocaleDateString('ru-RU', {

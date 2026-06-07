@@ -2,9 +2,9 @@ import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Card container component
- * @param props - HTML div attributes
- * @param props.className - Additional CSS classes
+ * Контейнер компонента Card
+ * @param props - HTML div атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
@@ -14,9 +14,9 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
 Card.displayName = 'Card';
 
 /**
- * Card header component
- * @param props - HTML div attributes
- * @param props.className - Additional CSS classes
+ * Компонент заголовка Card
+ * @param props - HTML div атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
@@ -26,9 +26,9 @@ export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
 CardHeader.displayName = 'CardHeader';
 
 /**
- * Card title component
- * @param props - HTML heading attributes
- * @param props.className - Additional CSS classes
+ * Компонент заголовка Card
+ * @param props - HTML heading атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const CardTitle = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
@@ -38,9 +38,9 @@ export const CardTitle = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLHea
 CardTitle.displayName = 'CardTitle';
 
 /**
- * Card description component
- * @param props - HTML paragraph attributes
- * @param props.className - Additional CSS classes
+ * Компонент описания Card
+ * @param props - HTML paragraph атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
@@ -50,9 +50,9 @@ export const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<H
 CardDescription.displayName = 'CardDescription';
 
 /**
- * Card content component
- * @param props - HTML div attributes
- * @param props.className - Additional CSS classes
+ * Компонент содержимого Card
+ * @param props - HTML div атрибуты
+ * @param props.className - Дополнительные CSS классы
  */
 export const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (

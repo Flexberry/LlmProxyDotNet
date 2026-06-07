@@ -1,9 +1,9 @@
 import { forwardRef, InputHTMLAttributes } from 'react';
 
 /**
- * Input form field component
- * @param props - Input HTML attributes
- * @param props.className - Additional CSS classes
+ * Компонент поля ввода Input
+ * @param props - HTML атрибуты Input
+ * @param props.className - Дополнительные CSS классы
  */
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => (

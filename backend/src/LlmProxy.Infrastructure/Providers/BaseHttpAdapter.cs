@@ -8,12 +8,21 @@ using Microsoft.Extensions.Logging;
 
 namespace LlmProxy.Infrastructure.Providers;
 
+/// <summary>
+/// Базовый класс HTTP адаптера для провайдеров LLM
+/// </summary>
 public abstract class BaseHttpAdapter
 {
     protected readonly HttpClient _httpClient;
     protected readonly ProviderSettings _settings;
     protected readonly ILogger _logger;
 
+    /// <summary>
+    /// Создаёт экземпляр базового HTTP адаптера
+    /// </summary>
+    /// <param name="httpClient">HTTP клиент для запросов</param>
+    /// <param name="settings">Настройки провайдера</param>
+    /// <param name="logger">Логгер для записи событий</param>
     protected BaseHttpAdapter(HttpClient httpClient, ProviderSettings settings, ILogger logger)
     {
         _httpClient = httpClient;

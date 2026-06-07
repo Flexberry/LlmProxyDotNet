@@ -1,9 +1,9 @@
 import { forwardRef, LabelHTMLAttributes } from 'react';
 
 /**
- * Label form field component
- * @param props - Label HTML attributes
- * @param props.className - Additional CSS classes
+ * Компонент поля ввода Label
+ * @param props - HTML атрибуты Label
+ * @param props.className - Дополнительные CSS классы
  */
 export const Label = forwardRef<HTMLLabelElement, LabelHTMLAttributes<HTMLLabelElement>>(
   ({ className, ...props }, ref) => (

@@ -20,12 +20,12 @@ import type {
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
 /**
- * Makes an HTTP request to the backend API
- * @template T - Expected response type
- * @param endpoint - API endpoint path
- * @param options - Fetch options
- * @returns Promise resolving to the response data
- * @throws Error on HTTP errors
+ * Выполняет HTTP запрос к backend API
+ * @template T - Ожидаемый тип ответа
+ * @param endpoint - Путь API endpoint
+ * @param options - Опции fetch
+ * @returns Promise с данными ответа
+ * @throws Error при HTTP ошибках
  */
 export async function fetchBackend<T>(
   endpoint: string, 
@@ -119,17 +119,17 @@ export async function fetchAdmin<T>(
 }
 
 /**
- * Retrieves all API keys
- * @returns Promise resolving to array of API keys
+ * Получает все API ключи
+ * @returns Promise с массивом API ключей
  */
 export async function listApiKeys(): Promise<ApiKey[]> {
   return fetchAdmin<ApiKey[]>('/admin/keys', 'GET');
 }
 
 /**
- * Creates a new API key
- * @param data - Data for key creation
- * @returns Promise resolving to the created key with plaintext
+ * Создаёт новый API ключ
+ * @param data - Данные для создания ключа
+ * @returns Promise с созданным ключом (с plaintext)
  */
 export async function createApiKey(data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
   const payload = {
@@ -140,27 +140,27 @@ export async function createApiKey(data: CreateApiKeyRequest): Promise<CreateApi
 }
 
 /**
- * Revokes an API key by ID
- * @param keyId - Unique key identifier
- * @returns Promise resolving when key is revoked
+ * Отозывает API ключ по ID
+ * @param keyId - Уникальный идентификатор ключа
+ * @returns Promise, разрешающийся после отзыва ключа
  */
 export async function revokeApiKey(keyId: string): Promise<void> {
   return fetchAdmin<void>(`/admin/keys/${keyId}`, 'DELETE');
 }
 
 /**
- * Retrieves list of available models
- * @returns Promise resolving to models list response
+ * Получает список доступных моделей
+ * @returns Promise с ответом списка моделей
  */
 export async function listModels(): Promise<ModelsListResponse> {
   return fetchBackend<ModelsListResponse>('/v1/models');
 }
 
 /**
- * Retrieves usage statistics for a period
- * @param from - Start date of the period
- * @param to - End date of the period
- * @returns Promise resolving to statistics
+ * Получает статистику использования за период
+ * @param from - Дата начала периода
+ * @param to - Дата конца периода
+ * @returns Promise со статистикой
  */
 export async function getStats(from: Date, to: Date): Promise<LogStats> {
   const params = new URLSearchParams({ 
@@ -172,142 +172,142 @@ export async function getStats(from: Date, to: Date): Promise<LogStats> {
 }
 
 /**
- * v2: Rate Limiting APIs
+ * v2: API для Rate Limiting
  */
 
 /**
- * Get rate limit status for an API key
- * @param apiKeyHash - Hash of the API key
- * @returns Current rate limit status
+ * Получает статус rate limit для API ключа
+ * @param apiKeyHash - Хеш API ключа
+ * @returns Текущий статус rate limit
  */
 export async function getRateLimitStatus(apiKeyHash: string): Promise<RateLimitStatus> {
   return fetchAdmin<RateLimitStatus>(`/admin/ratelimits/${apiKeyHash}`, 'GET');
 }
 
 /**
- * v2: Budget Management APIs
+ * v2: API для Budget Management
  */
 
 /**
- * Get budget for an entity
- * @param entityType - Type of entity ('ApiKey' or 'Team')
- * @param entityId - Entity identifier
- * @returns Budget information
+ * Получает бюджет для сущности
+ * @param entityType - Тип сущности ('ApiKey' или 'Team')
+ * @param entityId - Идентификатор сущности
+ * @returns Информация о бюджете
  */
 export async function getBudget(entityType: 'ApiKey' | 'Team', entityId: string): Promise<Budget | null> {
   try {
     return await fetchAdmin<Budget>(`/admin/budgets/${entityType}/${entityId}`, 'GET');
   } catch (error) {
-    // Return null if budget doesn't exist
+    // Возвращаем null, если бюджет не существует
     return null;
   }
 }
 
 /**
- * Set or update budget for an entity
- * @param entityType - Type of entity ('ApiKey' or 'Team')
- * @param entityId - Entity identifier
- * @param request - Budget settings
- * @returns Updated budget
+ * Устанавливает или обновляет бюджет для сущности
+ * @param entityType - Тип сущности ('ApiKey' или 'Team')
+ * @param entityId - Идентификатор сущности
+ * @param request - Настройки бюджета
+ * @returns Обновлённый бюджет
  */
 export async function setBudget(entityType: 'ApiKey' | 'Team', entityId: string, request: SetBudgetRequest): Promise<Budget> {
   return fetchAdmin<Budget>(`/admin/budgets/${entityType}/${entityId}`, 'POST', request);
 }
 
 /**
- * Check budget status for an entity
- * @param entityType - Type of entity ('ApiKey' or 'Team')
- * @param entityId - Entity identifier
- * @returns Budget check result
+ * Проверяет статус бюджета для сущности
+ * @param entityType - Тип сущности ('ApiKey' или 'Team')
+ * @param entityId - Идентификатор сущности
+ * @returns Результат проверки бюджета
  */
 export async function checkBudget(entityType: 'ApiKey' | 'Team', entityId: string): Promise<BudgetCheckResult> {
   return fetchAdmin<BudgetCheckResult>(`/admin/budgets/${entityType}/${entityId}/check`, 'GET');
 }
 
 /**
- * Update spending for an entity
- * @param entityType - Type of entity ('ApiKey' or 'Team')
- * @param entityId - Entity identifier
- * @param request - Spending update request
- * @returns Updated budget check result
+ * Обновляет расходы для сущности
+ * @param entityType - Тип сущности ('ApiKey' или 'Team')
+ * @param entityId - Идентификатор сущности
+ * @param request - Запрос на обновление расходов
+ * @returns Обновлённый результат проверки бюджета
  */
 export async function updateSpending(entityType: 'ApiKey' | 'Team', entityId: string, request: UpdateSpendingRequest): Promise<BudgetCheckResult> {
   return fetchAdmin<BudgetCheckResult>(`/admin/budgets/${entityType}/${entityId}/spending`, 'POST', request);
 }
 
 /**
- * v2: Team/Org RBAC APIs
+ * v2: API для Team/Org RBAC
  */
 
 /**
- * Create a new team
- * @param request - Team creation request
- * @returns Created team
+ * Создаёт новую команду
+ * @param request - Запрос на создание команды
+ * @returns Созданная команда
  */
 export async function createTeam(request: CreateTeamRequest): Promise<Team> {
   return fetchAdmin<Team>('/admin/teams', 'POST', request);
 }
 
 /**
- * Get a team by ID
- * @param teamId - Team identifier
- * @returns Team information
+ * Получает команду по ID
+ * @param teamId - Идентификатор команды
+ * @returns Информация о команде
  */
 export async function getTeam(teamId: string): Promise<Team> {
   return fetchAdmin<Team>(`/admin/teams/${teamId}`, 'GET');
 }
 
 /**
- * Get all teams for the current user
- * @returns Array of teams
+ * Получает все команды для текущего пользователя
+ * @returns Массив команд
  */
 export async function getUserTeams(): Promise<Team[]> {
   return fetchAdmin<Team[]>('/admin/teams', 'GET');
 }
 
 /**
- * Add a member to a team
- * @param teamId - Team identifier
- * @param request - Member addition request
- * @returns Added team member
+ * Добавляет участника в команду
+ * @param teamId - Идентификатор команды
+ * @param request - Запрос на добавление участника
+ * @returns Добавленный участник команды
  */
 export async function addTeamMember(teamId: string, request: AddTeamMemberRequest): Promise<TeamMember> {
   return fetchAdmin<TeamMember>(`/admin/teams/${teamId}/members`, 'POST', request);
 }
 
 /**
- * Remove a member from a team
- * @param teamId - Team identifier
- * @param userId - User identifier
+ * Удаляет участника из команды
+ * @param teamId - Идентификатор команды
+ * @param userId - Идентификатор пользователя
  */
 export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
   return fetchAdmin<void>(`/admin/teams/${teamId}/members/${userId}`, 'DELETE');
 }
 
 /**
- * Get user's role in a team
- * @param teamId - Team identifier
- * @param userId - User identifier
- * @returns Team member information
+ * Получает роль пользователя в команде
+ * @param teamId - Идентификатор команды
+ * @param userId - Идентификатор пользователя
+ * @returns Информация об участнике команды
  */
 export async function getUserRole(teamId: string, userId: string): Promise<TeamMember> {
   return fetchAdmin<TeamMember>(`/admin/teams/${teamId}/members/${userId}/role`, 'GET');
 }
 
 /**
- * Delete a team
- * @param teamId - Team identifier
+ * Удаляет команду
+ * @param teamId - Идентификатор команды
  */
 export async function deleteTeam(teamId: string): Promise<void> {
   return fetchAdmin<void>(`/admin/teams/${teamId}`, 'DELETE');
 }
 
 /**
- * Creates a chat completion through LLM provider
- * @param request - Chat completion request
- * @param userApiKey - User's API key
- * @param onChunk - Callback for each stream chunk
- * @returns Promise resolving to response or void for streaming
+ * Создаёт завершение чата через LLM провайдера
+ * @param request - Запрос на завершение чата
+ * @param userApiKey - API ключ пользователя
+ * @param onChunk - Callback для каждого фрагмента потока
+ * @returns Promise с ответом или void для потоковых запросов
  */
 export async function createChatCompletion(
   request: ChatCompletionRequest,
@@ -316,7 +316,7 @@ export async function createChatCompletion(
 ): Promise<any> {
   if (request.stream) {
     if (!onChunk) {
-      throw new Error('stream:true requires onChunk callback');
+      throw new Error('stream:true требует callback onChunk');
     }
     return streamChatCompletion(request, userApiKey, onChunk);
   }
@@ -339,11 +339,11 @@ export async function createChatCompletion(
 }
 
 /**
- * Creates a streaming chat completion
- * @param request - Chat completion request
- * @param userApiKey - User's API key
- * @param onChunk - Callback for each stream chunk
- * @returns Promise resolving when streaming is complete
+ * Создаёт потоковое завершение чата
+ * @param request - Запрос на завершение чата
+ * @param userApiKey - API ключ пользователя
+ * @param onChunk - Callback для каждого фрагмента потока
+ * @returns Promise, разрешающийся после завершения потоковой передачи
  */
 async function streamChatCompletion(
   request: ChatCompletionRequest,
@@ -366,7 +366,7 @@ async function streamChatCompletion(
   });
 
   if (!response.ok || !response.body) {
-    throw new Error('Failed to start streaming');
+    throw new Error('Не удалось запустить потоковую передачу');
   }
 
   const reader = response.body.getReader();
@@ -391,7 +391,7 @@ async function streamChatCompletion(
             const chunk = JSON.parse(data);
             onChunk(chunk);
           } catch (e) {
-            console.warn('Failed to parse chunk:', data);
+            console.warn('Не удалось обработать фрагмент:', data);
           }
         }
       }
