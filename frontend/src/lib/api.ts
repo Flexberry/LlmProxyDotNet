@@ -163,8 +163,12 @@ export async function listModels(): Promise<ModelsListResponse> {
  * @returns Promise resolving to statistics
  */
 export async function getStats(from: Date, to: Date): Promise<LogStats> {
-  // Pass endpoint without query params, and let fetchAdmin handle query params
-  return fetchAdmin<LogStats>('/admin/stats', 'GET', { from: from.toISOString(), to: to.toISOString() });
+  const params = new URLSearchParams({ 
+    endpoint: '/admin/stats',
+    from: from.toISOString(), 
+    to: to.toISOString() 
+  });
+  return fetchAdmin<LogStats>(`/api/admin?${params}`, 'GET');
 }
 
 /**
@@ -346,13 +350,19 @@ async function streamChatCompletion(
   userApiKey: string,
   onChunk: (chunk: unknown) => void
 ): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}/v1/chat/completions`, {
+  const response = await fetch(`${BACKEND_URL}/api/proxy`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${userApiKey}`,
     },
-    body: JSON.stringify({ ...request, stream: true }),
+    body: JSON.stringify({ 
+      path: '/v1/chat/completions',
+      method: 'POST',
+      body: { ...request, stream: true },
+      headers: {
+        'Authorization': `Bearer ${userApiKey}`
+      }
+    }),
   });
 
   if (!response.ok || !response.body) {

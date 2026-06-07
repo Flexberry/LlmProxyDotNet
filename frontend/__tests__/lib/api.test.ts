@@ -259,6 +259,11 @@ describe('API Client', () => {
           body: expect.stringContaining('"stream":true'),
         })
       );
+      
+      // Verify onChunk was called with parsed content
+      expect(onChunk).toHaveBeenCalled();
+      expect(chunks.length).toBeGreaterThan(0);
+      expect(chunks[0].choices[0].delta.content).toBe('Hello');
     });
 
     it('throws on failed stream start', async () => {

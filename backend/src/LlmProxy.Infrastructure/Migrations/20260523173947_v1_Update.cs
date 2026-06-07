@@ -93,7 +93,17 @@ namespace LlmProxy.Infrastructure.Migrations
                 oldClrType: typeof(string),
                 oldType: "text");
 
+            migrationBuilder.AlterColumn<string>(
+                name: "status",
+                table: "request_logs",
+                type: "character varying(20)",
+                maxLength: 20,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
             migrationBuilder.Sql(@"UPDATE request_logs SET status = LEFT(status, 20) WHERE LENGTH(status) > 20");
+
             migrationBuilder.AlterColumn<string>(
                 name: "provider_name",
                 table: "request_logs",
@@ -104,6 +114,7 @@ namespace LlmProxy.Infrastructure.Migrations
                 oldType: "text");
 
             migrationBuilder.Sql(@"UPDATE request_logs SET provider_name = LEFT(provider_name, 50) WHERE LENGTH(provider_name) > 50");
+
             migrationBuilder.AlterColumn<string>(
                 name: "model_used",
                 table: "request_logs",
@@ -114,6 +125,7 @@ namespace LlmProxy.Infrastructure.Migrations
                 oldType: "text");
 
             migrationBuilder.Sql(@"UPDATE request_logs SET model_used = LEFT(model_used, 200) WHERE LENGTH(model_used) > 200");
+
             migrationBuilder.AlterColumn<string>(
                 name: "model_requested",
                 table: "request_logs",
@@ -124,6 +136,7 @@ namespace LlmProxy.Infrastructure.Migrations
                 oldType: "text");
 
             migrationBuilder.Sql(@"UPDATE request_logs SET model_requested = LEFT(model_requested, 200) WHERE LENGTH(model_requested) > 200");
+
             migrationBuilder.AlterColumn<string>(
                 name: "error_message",
                 table: "request_logs",

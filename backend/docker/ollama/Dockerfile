@@ -1,5 +1,6 @@
 # Dockerfile для Ollama с автоматической загрузкой моделей
-FROM ollama/ollama:latest
+# Используем конкретную версию для детерминированной сборки
+FROM ollama/ollama:0.1.44
 
 # Копируем скрипт инициализации
 COPY init-models.sh /init-models.sh

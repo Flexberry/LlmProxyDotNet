@@ -101,38 +101,48 @@ public class OllamaAdapter : BaseHttpAdapter, ILlmProvider
         var responseContent = await response.Content.ReadAsStringAsync(ct);
         
         // Ollama возвращает: { "embeddings": [[...floats...]], ... }
-        using var doc = JsonDocument.Parse(responseContent);
-        
-        var embeddings = new List<EmbeddingData>();
-        var root = doc.RootElement;
-        
-        if (root.TryGetProperty("embeddings", out var embeddingsProp))
+        try
         {
-            var index = 0;
-            foreach (var embeddingArray in embeddingsProp.EnumerateArray())
+            using var doc = JsonDocument.Parse(responseContent);
+            
+            var embeddings = new List<EmbeddingData>();
+            var root = doc.RootElement;
+            
+            if (root.TryGetProperty("embeddings", out var embeddingsProp))
             { 
-                var floatArray = new List<float>();
-                foreach (var num in embeddingArray.EnumerateArray())
+                var index = 0;
+                foreach (var embeddingArray in embeddingsProp.EnumerateArray())
                 {
-                    floatArray.Add(num.GetSingle());
+                    var floatArray = new List<float>();
+                    foreach (var num in embeddingArray.EnumerateArray())
+                    {
+                        floatArray.Add(num.GetSingle());
+                    }
+                    embeddings.Add(new EmbeddingData { Index = index++, Embedding = floatArray });
                 }
-                embeddings.Add(new EmbeddingData { Index = index++, Embedding = floatArray });
             }
+            
+            // Получаем token usage если доступен
+            var usage = new Usage { PromptTokens = 0, CompletionTokens = 0, TotalTokens = 0 };
+            if (root.TryGetProperty("total_token_count", out var tokenCount))
+            { 
+                usage = new Usage { PromptTokens = tokenCount.GetInt32(), TotalTokens = tokenCount.GetInt32() };
+            }
+            
+            return new EmbeddingResponse
+            { 
+                Model = request.Model,
+                Data = embeddings.ToArray(),
+                Usage = usage
+            };
         }
-        
-        // Получаем token usage если доступен
-        var usage = new Usage { PromptTokens = 0, CompletionTokens = 0, TotalTokens = 0 };
-        if (root.TryGetProperty("total_token_count", out var tokenCount))
+        catch (JsonException jsonEx)
         {
-            usage = new Usage { PromptTokens = tokenCount.GetInt32(), TotalTokens = tokenCount.GetInt32() };
+            throw new InvalidOperationException(
+                $"Failed to parse Ollama embeddings response for model '{request.Model}'. " +
+                $"Response content: {responseContent}", 
+                jsonEx);
         }
-        
-        return new EmbeddingResponse
-        {
-            Model = request.Model,
-            Data = embeddings.ToArray(),
-            Usage = usage
-        };
     }
 
     private OllamaChatRequest MapToOllamaRequest(ChatCompletionRequest req, bool stream) => new(

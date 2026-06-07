@@ -120,6 +120,9 @@ public class ChatControllerTests
         
         var contentType = _controller.ControllerContext.HttpContext.Response.Headers.ContentType;
         Assert.Equal("text/event-stream", contentType);
+        
+        // Verify streaming result type
+        Assert.IsType<EmptyResult>(result);
     }
 
     private static ILlmProvider CreateMockProvider(string name)
