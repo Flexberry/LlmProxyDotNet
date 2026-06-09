@@ -6,8 +6,6 @@ global.fetch = jest.fn();
 describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.NEXT_PUBLIC_LITELLM_MASTER_KEY = 'sk_master_test';
-    process.env.NEXT_PUBLIC_ADMIN_SECRET = 'admin_secret';
   });
 
   describe('fetchBackend', () => {
@@ -79,12 +77,13 @@ describe('API Client', () => {
 
       const result = await listApiKeys();
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/admin'),
+        '/api/proxy',
         expect.objectContaining({
-          method: 'GET',
+          method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
+          body: expect.stringContaining('/admin/keys'),
         })
       );
       expect(result).toEqual(mockKeys);
@@ -96,21 +95,24 @@ describe('API Client', () => {
       const mockResponse = { key: 'sk_new', apiKey: { id: '1', keyHash: 'xyz', isActive: true } };
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
+        status: 201,
         headers: { get: jest.fn((key) => key === 'content-length' ? '10' : null) },
         json: async () => mockResponse,
       });
 
       const result = await createApiKey({ name: 'Test', permissions: ['*'] });
       expect(fetch).toHaveBeenCalledWith(
-        '/api/admin',
+        '/api/proxy',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ 
-            endpoint: '/admin/keys', 
-            body: { name: 'Test', permissions: ['*'] } 
-          }),
         })
       );
+      // Проверяем структуру body отдельно
+      const call = (fetch as jest.Mock).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+      expect(body.path).toBe('/admin/keys');
+      expect(body.method).toBe('POST');
+      expect(body.body).toEqual({ name: 'Test', permissions: ['*'] });
       expect(result).toEqual(mockResponse);
     });
 
@@ -135,19 +137,20 @@ describe('API Client', () => {
     it('calls DELETE endpoint with correct key ID', async () => {
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        headers: { get: jest.fn() },
+        headers: { get: jest.fn((key) => key === 'content-length' ? '10' : null) },
+        json: async () => ({ success: true }),
       });
 
       await revokeApiKey('test-key-id');
 
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/admin'),
-        expect.objectContaining({ 
-          method: 'DELETE',
+        '/api/proxy',
+        expect.objectContaining({
+          method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
+          body: expect.stringContaining('/admin/keys/test-key-id'),
         })
       );
     });
@@ -181,9 +184,15 @@ describe('API Client', () => {
 
       await getStats(from, to);
 
+      // Проверяем, что запрос шёл через /api/proxy
+      expect(fetch).toHaveBeenCalledWith('/api/proxy', expect.any(Object));
+      
+      // Проверяем, что параметры были переданы в body
       const call = (fetch as jest.Mock).mock.calls[0];
-      expect(call[0]).toContain('from=');
-      expect(call[0]).toContain('to=');
+      const body = JSON.parse(call[1].body);
+      expect(body.path).toContain('/admin/stats');
+      expect(body.path).toContain('from=');
+      expect(body.path).toContain('to=');
     });
   });
 

@@ -8,7 +8,7 @@ const MASTER_KEY = process.env.LITELLM_MASTER_KEY;
 
 export async function POST(request: NextRequest) {
   try {
-    const { path, method = 'POST', body, headers: clientHeaders } = await request.json();
+    const { path, method = 'GET', body, headers: clientHeaders } = await request.json();
     
     const headers = new Headers();
     headers.set('Content-Type', 'application/json');
@@ -36,7 +36,12 @@ export async function POST(request: NextRequest) {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const data = await response.json();
+    // Обработка 204 No Content
+    if (response.status === 204) {
+      return NextResponse.json({ success: true });
+    }
+
+    const data = await response.json().catch(() => ({}));
     
     if (!response.ok) {
       return NextResponse.json(data, { status: response.status });

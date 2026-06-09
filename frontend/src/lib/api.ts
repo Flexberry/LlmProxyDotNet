@@ -52,55 +52,30 @@ export async function fetchBackend<T>(
 }
 
 // Серверные API функции для административных операций
-// Эти функции вызывают server-side API route (/api/admin), который сам добавляет ADMIN_SECRET
+// Эти функции вызывают server-side proxy (/api/proxy), который добавляет LITELLM_MASTER_KEY
 export async function fetchAdmin<T>(
   endpoint: string, 
   method: 'GET' | 'POST' | 'DELETE' = 'GET',
   body?: any
 ): Promise<T> {
   try {
-    // Для клиентского кода не добавляем Authorization header — это делает server-side API route
-    const headers: HeadersInit = { 
-      'Content-Type': 'application/json',
-    };
-    
-    // Для GET и DELETE используем query params, для POST — JSON body
-    if (method === 'GET' || method === 'DELETE') {
-      const params = new URLSearchParams({ endpoint });
-      const response = await fetch(`/api/admin?${params}`, {
+    // Все admin запросы идут через server-side proxy, который сам добавляет master key
+    const response = await fetch(`/api/proxy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        path: endpoint, 
         method,
-        headers,
-      });
+        body: method === 'POST' ? body : undefined 
+      }),
+    });
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || `HTTP ${response.status}`);
-      }
-
-      // DELETE может возвращать пустой ответ (204)
-      if (method === 'DELETE') {
-        const contentLength = response.headers?.get("content-length");
-        if (response.status === 204 || contentLength === "0") {
-          return {} as T;
-        }
-      }
-
-      return response.json();
-    } else {
-      // POST с JSON body
-      const response = await fetch(`/api/admin`, {
-        method,
-        headers,
-        body: JSON.stringify({ endpoint, body }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || `HTTP ${response.status}`);
-      }
-
-      return response.json();
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `HTTP ${response.status}`);
     }
+
+    return response.json();
   } catch (error) {
     console.error(`Admin API Error [${endpoint}]:`, error);
     throw error;
@@ -132,11 +107,8 @@ export async function listModels(): Promise<ModelsListResponse> {
 }
 
 export async function getStats(from: Date, to: Date): Promise<LogStats> {
-  const params = new URLSearchParams({
-    from: from.toISOString(),
-    to: to.toISOString(),
-  });
-  return fetchBackend<LogStats>(`/admin/stats?${params}`);
+  // Используем server-side proxy для админ-запросов
+  return fetchAdmin<LogStats>(`/admin/stats?from=${from.toISOString()}&to=${to.toISOString()}`, 'GET');
 }
 
 export async function createChatCompletion(
