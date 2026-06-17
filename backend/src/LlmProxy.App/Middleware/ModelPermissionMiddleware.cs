@@ -11,6 +11,7 @@ public class ModelPermissionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly Dictionary<string, string> _providerPrefixes;
+    private readonly string? _defaultPrefix;
     private readonly ILogger _logger;
 
     public ModelPermissionMiddleware(
@@ -28,6 +29,13 @@ public class ModelPermissionMiddleware
                 p => p.Value.Prefix!,
                 p => p.Key,
                 StringComparer.OrdinalIgnoreCase);
+
+        // Сохраняем префикс default провайдера
+        if (config.Value.Providers.TryGetValue(config.Value.DefaultProvider, out var defaultProvider)
+            && !string.IsNullOrEmpty(defaultProvider.Prefix))
+        {
+            _defaultPrefix = defaultProvider.Prefix;
+        }
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -115,7 +123,7 @@ public class ModelPermissionMiddleware
     /// <summary>
     /// Резолвит имя модели:
     /// - Если уже есть префикс (например "ollama/llama3.2") — возвращаем как есть
-    /// - Если без префикса (например "llama3.2") — добавляем префикс по умолчанию
+    /// - Если без префикса (например "llama3.2") — добавляем префикс из DefaultProvider
     /// </summary>
     private string ResolveModel(string modelName)
     {
@@ -123,11 +131,10 @@ public class ModelPermissionMiddleware
         if (modelName.Contains('/'))
             return modelName;
 
-        // Иначе добавляем префикс первого доступного провайдера
-        if (_providerPrefixes.Any())
+        // Иначе добавляем префикс из DefaultProvider
+        if (!string.IsNullOrEmpty(_defaultPrefix))
         {
-            var defaultPrefix = _providerPrefixes.First().Key;
-            return $"{defaultPrefix}{modelName}";
+            return $"{_defaultPrefix}{modelName}";
         }
 
         return modelName;
