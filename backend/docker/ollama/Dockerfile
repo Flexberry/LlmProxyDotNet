@@ -2,16 +2,18 @@
 FROM ollama/ollama:latest
 
 # Переменная окружения для настройки моделей
-ENV OLLAMA_MODELS="llama3.2:latest mistral:latest"
+ENV OLLAMA_MODELS="llama3:latest mistral:latest"
 
 # Директория для моделей
 VOLUME /root/.ollama
 
 EXPOSE 11434
 
-# Копируем скрипт инициализации
-COPY init-ollama.sh /init-ollama.sh
-RUN chmod +x /init-ollama.sh
+# Копируем скрипт и инициализации
+COPY init-ollama.sh /tmp/init-ollama.sh
+RUN sed -i 's/\r$//' /tmp/init-ollama.sh && \
+    chmod +x /tmp/init-ollama.sh && \
+    cp /tmp/init-ollama.sh /init-ollama.sh
 
 # Запускаем скрипт инициализации
 ENTRYPOINT ["/init-ollama.sh"]

@@ -28,7 +28,7 @@ done
 MARKER_FILE="/root/.ollama/models_loaded"
 
 if [ ! -f "$MARKER_FILE" ]; then
-    MODELS_TO_PULL="${OLLAMA_MODELS:-llama3.2:latest}"
+    MODELS_TO_PULL="${OLLAMA_MODELS:-llama3:latest}"
     echo "=== Pulling models: $MODELS_TO_PULL ==="
     for model in $MODELS_TO_PULL; do
         echo "Pulling: $model"

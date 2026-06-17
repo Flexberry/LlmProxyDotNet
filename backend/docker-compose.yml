@@ -85,7 +85,7 @@ services:
       context: ./docker/ollama
       dockerfile: Dockerfile
     environment:
-      - OLLAMA_MODELS=llama3.2:latest mistral:latest
+      - OLLAMA_MODELS=llama3:latest mistral:latest
     ports:
       - "11434:11434"
     volumes:
